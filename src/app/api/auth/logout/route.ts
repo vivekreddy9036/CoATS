@@ -1,11 +1,9 @@
 import { apiSuccess } from "@/lib/utils";
-import { getTokenName } from "@/lib/auth";
+import { buildClearAccessCookie, buildClearRefreshCookie } from "@/lib/auth";
 
 export async function POST() {
   const response = apiSuccess(null, "Logged out");
-  response.headers.set(
-    "Set-Cookie",
-    `${getTokenName()}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`
-  );
+  response.headers.append("Set-Cookie", buildClearAccessCookie());
+  response.headers.append("Set-Cookie", buildClearRefreshCookie());
   return response;
 }

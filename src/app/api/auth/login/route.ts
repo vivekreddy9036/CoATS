@@ -1,8 +1,14 @@
 import { NextRequest } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
-import { signToken, getTokenName } from "@/lib/auth";
+import {
+  signAccessToken,
+  signRefreshToken,
+  buildAccessCookie,
+  buildRefreshCookie,
+} from "@/lib/auth";
 import { apiSuccess, apiError } from "@/lib/utils";
+import { applyRateLimit, LOGIN_RATE_LIMIT } from "@/lib/rate-limit";
 import type { LoginRequest } from "@/types";
 
 async function verifyTurnstile(token: string): Promise<boolean> {
@@ -23,6 +29,10 @@ async function verifyTurnstile(token: string): Promise<boolean> {
 
 export async function POST(req: NextRequest) {
   try {
+    // ── Rate limit: 5 login attempts per 60s per IP ──
+    const rateLimited = applyRateLimit(req, LOGIN_RATE_LIMIT);
+    if (rateLimited) return rateLimited;
+
     const body = (await req.json()) as LoginRequest;
 
     if (!body.username || !body.password) {
@@ -58,7 +68,7 @@ export async function POST(req: NextRequest) {
       data: { lastLogin: new Date() },
     });
 
-    const token = await signToken({
+    const jwtPayload = {
       userId: user.id,
       username: user.username,
       fullName: user.fullName,
@@ -67,25 +77,31 @@ export async function POST(req: NextRequest) {
       isSupervisory: user.role.isSupervisory,
       branchId: user.branchId,
       branchCode: user.branch.code,
-    });
+    };
 
-    const response = apiSuccess({
-      user: {
-        userId: user.id,
-        username: user.username,
-        fullName: user.fullName,
-        roleCode: user.role.code,
-        isSupervisory: user.role.isSupervisory,
-        branchId: user.branchId,
-        branchCode: user.branch.code,
+    const [accessToken, refreshToken] = await Promise.all([
+      signAccessToken(jwtPayload),
+      signRefreshToken(user.id),
+    ]);
+
+    const response = apiSuccess(
+      {
+        user: {
+          userId: user.id,
+          username: user.username,
+          fullName: user.fullName,
+          roleCode: user.role.code,
+          isSupervisory: user.role.isSupervisory,
+          branchId: user.branchId,
+          branchCode: user.branch.code,
+        },
       },
-    }, "Login successful");
-
-    // Set HTTP-only cookie
-    response.headers.set(
-      "Set-Cookie",
-      `${getTokenName()}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${8 * 3600}`
+      "Login successful"
     );
+
+    // Set HttpOnly cookies (access + refresh)
+    response.headers.append("Set-Cookie", buildAccessCookie(accessToken));
+    response.headers.append("Set-Cookie", buildRefreshCookie(refreshToken));
 
     return response;
   } catch (error) {

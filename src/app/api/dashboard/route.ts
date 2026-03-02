@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAuth, requireSupervisory } from "@/lib/api-auth";
+import { requireSupervisoryAuth } from "@/lib/api-auth";
 import { apiSuccess, apiError } from "@/lib/utils";
 
 /**
@@ -9,11 +9,8 @@ import { apiSuccess, apiError } from "@/lib/utils";
  * Query params: branchId, dateFrom, dateTo
  */
 export async function GET(req: NextRequest) {
-  const session = await requireAuth(req);
+  const session = await requireSupervisoryAuth(req);
   if (session instanceof Response) return session;
-
-  const forbidden = requireSupervisory(session);
-  if (forbidden) return forbidden;
 
   try {
     const { searchParams } = new URL(req.url);
