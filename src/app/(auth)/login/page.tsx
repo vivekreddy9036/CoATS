@@ -1,7 +1,17 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, useEffect, useRef, type FormEvent } from "react";
+import Script from "next/script";
 import { useAuth } from "@/components/AuthProvider";
+
+declare global {
+  interface Window {
+    onTurnstileSuccess: (token: string) => void;
+    onTurnstileExpired: () => void;
+    turnstile?: { reset: (widgetId?: string) => void };
+    _turnstileWidgetId?: string;
+  }
+}
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -9,24 +19,45 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const turnstileRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    window.onTurnstileSuccess = (token: string) => setTurnstileToken(token);
+    window.onTurnstileExpired = () => setTurnstileToken("");
+  }, []);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError("");
+
+    if (!turnstileToken) {
+      setError("Please complete the CAPTCHA challenge.");
+      return;
+    }
+
     setLoading(true);
 
     try {
-      await login(username.trim(), password);
+      await login(username.trim(), password, turnstileToken);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
+      // Reset Turnstile so user can get a fresh token
+      window.turnstile?.reset(window._turnstileWidgetId);
+      setTurnstileToken("");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-navy-dark to-navy p-4">
-      <div className="w-full max-w-md">
+    <>
+      <Script
+        src="https://challenges.cloudflare.com/turnstile/v0/api.js"
+        strategy="afterInteractive"
+      />
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-navy-dark to-navy p-4">
+        <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-white tracking-wide">CoATS</h1>
@@ -77,9 +108,19 @@ export default function LoginPage() {
               />
             </div>
 
+            {/* Cloudflare Turnstile CAPTCHA */}
+            <div
+              ref={turnstileRef}
+              className="cf-turnstile"
+              data-sitekey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
+              data-callback="onTurnstileSuccess"
+              data-expired-callback="onTurnstileExpired"
+              data-theme="light"
+            />
+
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !turnstileToken}
               className="w-full py-2.5 bg-navy hover:bg-navy-light text-white font-medium rounded-lg transition-colors disabled:opacity-50 cursor-pointer"
             >
               {loading ? "Signing in..." : "Sign In"}
@@ -92,5 +133,6 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
+    </>
   );
 }

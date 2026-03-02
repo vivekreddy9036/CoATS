@@ -5,12 +5,37 @@ import { signToken, getTokenName } from "@/lib/auth";
 import { apiSuccess, apiError } from "@/lib/utils";
 import type { LoginRequest } from "@/types";
 
+async function verifyTurnstile(token: string): Promise<boolean> {
+  const res = await fetch(
+    "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        secret: process.env.TURNSTILE_SECRET_KEY!,
+        response: token,
+      }),
+    }
+  );
+  const data = (await res.json()) as { success: boolean };
+  return data.success;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = (await req.json()) as LoginRequest;
 
     if (!body.username || !body.password) {
       return apiError("Username and password are required");
+    }
+
+    if (!body.turnstileToken) {
+      return apiError("CAPTCHA verification required", 400);
+    }
+
+    const captchaOk = await verifyTurnstile(body.turnstileToken);
+    if (!captchaOk) {
+      return apiError("CAPTCHA verification failed. Please try again.", 400);
     }
 
     const user = await prisma.user.findUnique({

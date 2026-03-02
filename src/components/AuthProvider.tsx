@@ -14,7 +14,7 @@ import type { SessionUser } from "@/types";
 interface AuthContextValue {
   user: SessionUser | null;
   loading: boolean;
-  login: (username: string, password: string) => Promise<void>;
+  login: (username: string, password: string, turnstileToken: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -45,11 +45,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     fetchSession();
   }, [fetchSession]);
 
-  const login = async (username: string, password: string) => {
+  const login = async (username: string, password: string, turnstileToken: string) => {
     const res = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ username, password, turnstileToken }),
     });
 
     const json = await res.json();
