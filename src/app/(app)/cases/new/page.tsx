@@ -3,6 +3,7 @@
 import { useState, useEffect, type FormEvent } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { useRouter } from "next/navigation";
+import { DatePicker } from "@/components/ui/DatePicker";
 
 interface UserOption {
   id: number;
@@ -50,20 +51,28 @@ export default function CreateCasePage() {
   });
 
   useEffect(() => {
-    Promise.all([
-      fetch("/api/users?roleType=case-holder").then((r) => r.json()),
-      fetch("/api/branches").then((r) => r.json()),
-      fetch("/api/stages").then((r) => r.json()),
-    ]).then(([usersRes, branchesRes, stagesRes]) => {
-      setOfficers(usersRes.data || []);
-      setBranches(branchesRes.data || []);
-      setStages(stagesRes.data || []);
+    const fetchData = async () => {
+      try {
+        const [usersRes, branchesRes, stagesRes] = await Promise.all([
+          fetch("/api/users?roleType=case-holder").then((r) => r.ok ? r.json() : { data: [] }),
+          fetch("/api/branches").then((r) => r.ok ? r.json() : { data: [] }),
+          fetch("/api/stages").then((r) => r.ok ? r.json() : { data: [] }),
+        ]);
 
-      // Default branch to user's branch
-      if (user?.branchId) {
-        setForm((f) => ({ ...f, branchId: String(user.branchId) }));
+        setOfficers(usersRes.data || []);
+        setBranches(branchesRes.data || []);
+        setStages(stagesRes.data || []);
+
+        // Default branch to user's branch
+        if (user?.branchId) {
+          setForm((f) => ({ ...f, branchId: String(user.branchId) }));
+        }
+      } catch (err) {
+        console.error("Failed to fetch form data:", err);
       }
-    });
+    };
+
+    fetchData();
   }, [user]);
 
   const setField = (field: string, value: string) =>
@@ -166,22 +175,18 @@ export default function CreateCasePage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Date of Occurrence *</label>
-              <input
-                type="date"
+              <DatePicker
+                label="Date of Occurrence"
                 value={form.dateOfOccurrence}
-                onChange={(e) => setField("dateOfOccurrence", e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-navy focus:border-navy outline-none"
+                onChange={(val) => setField("dateOfOccurrence", val)}
                 required
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Date of Registration *</label>
-              <input
-                type="date"
+              <DatePicker
+                label="Date of Registration"
                 value={form.dateOfRegistration}
-                onChange={(e) => setField("dateOfRegistration", e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-navy focus:border-navy outline-none"
+                onChange={(val) => setField("dateOfRegistration", val)}
                 required
               />
             </div>

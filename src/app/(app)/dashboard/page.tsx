@@ -5,6 +5,7 @@ import { useEffect, useState, useCallback } from "react";
 import StageBadge from "@/components/ui/StageBadge";
 import Spinner from "@/components/ui/Spinner";
 import Link from "next/link";
+import { DatePicker } from "@/components/ui/DatePicker";
 
 interface StageSummary {
   stageCode: string;
@@ -166,21 +167,19 @@ function SupervisoryDashboard() {
             </select>
           </div>
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Date From</label>
-            <input
-              type="date"
+            <DatePicker
+              label="Date From"
               value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+              onChange={setDateFrom}
+              className="min-w-[160px]"
             />
           </div>
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Date To</label>
-            <input
-              type="date"
+            <DatePicker
+              label="Date To"
               value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+              onChange={setDateTo}
+              className="min-w-[160px]"
             />
           </div>
           <button
