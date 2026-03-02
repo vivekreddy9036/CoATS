@@ -1,0 +1,151 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_DATABASE_URL")
+}
+
+// ──────────────────────────────────────────────────
+// Lookup Tables
+// ──────────────────────────────────────────────────
+
+model Branch {
+  id             Int      @id @default(autoincrement())
+  code           String   @unique @db.VarChar(10)
+  name           String   @db.VarChar(100)
+  isHeadquarters Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  users User[]
+  cases Case[]
+
+  @@map("branches")
+}
+
+model Role {
+  id            Int      @id @default(autoincrement())
+  code          String   @unique @db.VarChar(20)
+  name          String   @db.VarChar(100)
+  isSupervisory Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  users User[]
+
+  @@map("roles")
+}
+
+model CaseStage {
+  id   Int    @id @default(autoincrement())
+  code String @unique @db.VarChar(20)
+  name String @db.VarChar(100)
+
+  cases Case[]
+
+  @@map("case_stages")
+}
+
+// ──────────────────────────────────────────────────
+// Users
+// ──────────────────────────────────────────────────
+
+model User {
+  id           Int       @id @default(autoincrement())
+  username     String    @unique @db.VarChar(100)
+  passwordHash String    @map("password_hash")
+  fullName     String    @db.VarChar(150)
+  roleId       Int       @map("role_id")
+  branchId     Int       @map("branch_id")
+  isActive     Boolean   @default(true) @map("is_active")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  lastLogin    DateTime? @map("last_login")
+
+  role   Role   @relation(fields: [roleId], references: [id])
+  branch Branch @relation(fields: [branchId], references: [id])
+
+  assignedCases   Case[]         @relation("AssignedOfficer")
+  createdCases    Case[]         @relation("CaseCreator")
+  createdActions  CaseAction[]
+  progressEntries CaseProgress[]
+
+  @@index([roleId])
+  @@index([branchId])
+  @@map("users")
+}
+
+// ──────────────────────────────────────────────────
+// Case Management
+// ──────────────────────────────────────────────────
+
+model Case {
+  id                 Int      @id @default(autoincrement())
+  uid                String   @unique @db.VarChar(50)
+  psLimit            String   @map("ps_limit") @db.VarChar(150)
+  crimeNumber        String   @map("crime_number") @db.VarChar(100)
+  sectionOfLaw       String   @map("section_of_law")
+  dateOfOccurrence   DateTime @map("date_of_occurrence") @db.Date
+  dateOfRegistration DateTime @map("date_of_registration") @db.Date
+  complainantName    String   @map("complainant_name") @db.VarChar(150)
+  accusedDetails     String   @map("accused_details")
+  gist               String
+  stageId            Int      @map("stage_id")
+  assignedOfficerId  Int      @map("assigned_officer_id")
+  branchId           Int      @map("branch_id")
+  isActive           Boolean  @default(true) @map("is_active")
+  createdById        Int      @map("created_by_id")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  stage           CaseStage @relation(fields: [stageId], references: [id])
+  assignedOfficer User      @relation("AssignedOfficer", fields: [assignedOfficerId], references: [id])
+  branch          Branch    @relation(fields: [branchId], references: [id])
+  createdBy       User      @relation("CaseCreator", fields: [createdById], references: [id])
+
+  actions         CaseAction[]
+  progressEntries CaseProgress[]
+
+  @@unique([crimeNumber, branchId])
+  @@index([stageId])
+  @@index([assignedOfficerId])
+  @@index([branchId])
+  @@index([isActive])
+  @@map("cases")
+}
+
+model CaseAction {
+  id          Int       @id @default(autoincrement())
+  caseId      Int       @map("case_id")
+  description String
+  isCompleted Boolean   @default(false) @map("is_completed")
+  createdById Int       @map("created_by_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  completedAt DateTime? @map("completed_at")
+
+  case      Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  createdBy User @relation(fields: [createdById], references: [id])
+
+  @@index([caseId])
+  @@index([isCompleted])
+  @@map("case_actions")
+}
+
+model CaseProgress {
+  id              Int       @id @default(autoincrement())
+  caseId          Int       @map("case_id")
+  progressDate    DateTime  @map("progress_date") @db.Date
+  progressDetails String    @map("progress_details")
+  reminderDate    DateTime? @map("reminder_date") @db.Date
+  furtherAction   String?   @map("further_action")
+  remarks         String?
+  createdById     Int       @map("created_by_id")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  case      Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  createdBy User @relation(fields: [createdById], references: [id])
+
+  @@index([caseId])
+  @@index([progressDate])
+  @@map("case_progress")
+}
