@@ -26,9 +26,10 @@ export default function Sidebar() {
       <nav className="flex-1 py-4">
         <ul className="space-y-1 px-3">
           {visibleItems.map((item) => {
-            const isActive =
-              pathname === item.href ||
-              (item.href !== "/dashboard" && pathname.startsWith(item.href + "/"));
+            // Exact match for specific pages, prefix match for dynamic routes
+            const isActive = pathname === item.href ||
+              (item.href === "/cases" && pathname.startsWith("/cases/") && pathname !== "/cases/new") ||
+              (item.href === "/all-cases" && pathname.startsWith("/all-cases/"));
 
             return (
               <li key={item.href}>
