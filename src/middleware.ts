@@ -9,7 +9,15 @@ const ACCESS_TOKEN_NAME = "coats_token";
 
 // ── Route definitions ───────────────────────────────
 // Public routes — no auth required
-const PUBLIC_ROUTES = ["/login", "/api/auth/login", "/api/auth/refresh"];
+const PUBLIC_ROUTES = [
+  "/login",
+  "/api/auth/login",
+  "/api/auth/refresh",
+  "/api/auth/2fa/setup",
+  "/api/auth/2fa/verify-setup",
+  "/api/auth/2fa/verify",
+  "/two-factor",
+];
 
 // Supervisory-only page routes
 const SUPERVISORY_PAGES = ["/all-cases", "/dashboard"];

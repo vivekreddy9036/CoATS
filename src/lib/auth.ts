@@ -29,6 +29,12 @@ export interface RefreshPayload {
   type: "refresh";
 }
 
+/** Short-lived token issued after password verification, before OTP */
+export interface TwoFactorPendingPayload {
+  userId: number;
+  type: "2fa_pending";
+}
+
 // ── Sign / Verify ───────────────────────────────────
 
 export async function signAccessToken(payload: JwtPayload): Promise<string> {
@@ -66,6 +72,53 @@ export async function verifyRefreshToken(
   } catch {
     return null;
   }
+}
+
+// ── 2FA Pending Token ───────────────────────────────
+// Issued after password check, valid only for OTP verification (5 min)
+
+const TWO_FA_PENDING_EXPIRY = "5m";
+const TWO_FA_COOKIE_NAME = "coats_2fa_pending";
+
+export function get2faCookieName(): string {
+  return TWO_FA_COOKIE_NAME;
+}
+
+export async function sign2faPendingToken(userId: number): Promise<string> {
+  return new SignJWT({ userId, type: "2fa_pending" } as unknown as Record<string, unknown>)
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime(TWO_FA_PENDING_EXPIRY)
+    .sign(JWT_SECRET);
+}
+
+export async function verify2faPendingToken(
+  token: string
+): Promise<TwoFactorPendingPayload | null> {
+  try {
+    const { payload } = await jwtVerify(token, JWT_SECRET);
+    if ((payload as unknown as TwoFactorPendingPayload).type !== "2fa_pending")
+      return null;
+    return payload as unknown as TwoFactorPendingPayload;
+  } catch {
+    return null;
+  }
+}
+
+export function build2faPendingCookie(token: string): string {
+  const parts = [
+    `${TWO_FA_COOKIE_NAME}=${token}`,
+    "Path=/",
+    "HttpOnly",
+    "SameSite=Lax",
+    `Max-Age=${5 * 60}`, // 5 minutes
+  ];
+  if (isProduction) parts.push("Secure");
+  return parts.join("; ");
+}
+
+export function buildClear2faPendingCookie(): string {
+  return `${TWO_FA_COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`;
 }
 
 // ── Session helpers ─────────────────────────────────

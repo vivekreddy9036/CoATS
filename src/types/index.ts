@@ -8,6 +8,17 @@ export interface LoginRequest {
   turnstileToken: string;
 }
 
+export interface LoginResponse {
+  requires2FA?: boolean;
+  totpEnabled?: boolean;
+  user?: SessionUser;
+}
+
+export interface TwoFactorVerifyRequest {
+  token?: string;
+  recoveryCode?: string;
+}
+
 export interface CreateCaseRequest {
   psLimit: string;
   crimeNumber: string;

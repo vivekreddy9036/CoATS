@@ -62,6 +62,13 @@ model User {
   createdAt    DateTime  @default(now()) @map("created_at")
   lastLogin    DateTime? @map("last_login")
 
+  // ── Two-Factor Authentication ──
+  totpEnabled      Boolean   @default(false) @map("totp_enabled")
+  totpSecret       String?   @map("totp_secret")       // AES-256-GCM encrypted
+  totpBackupCodes  String?   @map("totp_backup_codes")  // JSON array of bcrypt hashes
+  totpFailedCount  Int       @default(0) @map("totp_failed_count")
+  totpLockedUntil  DateTime? @map("totp_locked_until")
+
   role   Role   @relation(fields: [roleId], references: [id])
   branch Branch @relation(fields: [branchId], references: [id])
 
@@ -69,10 +76,31 @@ model User {
   createdCases    Case[]         @relation("CaseCreator")
   createdActions  CaseAction[]
   progressEntries CaseProgress[]
+  auditLogs       AuditLog[]
 
   @@index([roleId])
   @@index([branchId])
   @@map("users")
+}
+
+// ──────────────────────────────────────────────────
+// Audit Log
+// ──────────────────────────────────────────────────
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  action    String   @db.VarChar(50)
+  detail    String?
+  ipAddress String?  @map("ip_address") @db.VarChar(45)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
 }
 
 // ──────────────────────────────────────────────────

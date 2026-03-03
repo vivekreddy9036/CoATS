@@ -15,7 +15,11 @@ import type { SessionUser } from "@/types";
 interface AuthContextValue {
   user: SessionUser | null;
   loading: boolean;
+  twoFactorPending: { required: boolean; totpEnabled: boolean } | null;
   login: (username: string, password: string, turnstileToken: string) => Promise<void>;
+  verify2FA: (token: string) => Promise<{ recoveryCodes?: string[] }>;
+  verify2FARecovery: (code: string) => Promise<void>;
+  complete2FASetup: (token: string) => Promise<{ recoveryCodes: string[] }>;
   logout: () => Promise<void>;
 }
 
@@ -27,6 +31,10 @@ const REFRESH_INTERVAL = 14 * 60 * 1000;
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<SessionUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [twoFactorPending, setTwoFactorPending] = useState<{
+    required: boolean;
+    totpEnabled: boolean;
+  } | null>(null);
   const router = useRouter();
   const refreshTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -104,9 +112,85 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error(json.message || "Login failed");
     }
 
+    // Check if 2FA is required
+    if (json.data?.requires2FA) {
+      setTwoFactorPending({
+        required: true,
+        totpEnabled: json.data.totpEnabled,
+      });
+      router.push("/two-factor");
+      return;
+    }
+
     setUser(json.data.user);
     startRefreshTimer();
     router.push("/cases");
+  };
+
+  /** Verify TOTP code during login */
+  const verify2FA = async (token: string): Promise<{ recoveryCodes?: string[] }> => {
+    const res = await fetch("/api/auth/2fa/verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token }),
+    });
+
+    const json = await res.json();
+
+    if (!res.ok) {
+      throw new Error(json.message || "Verification failed");
+    }
+
+    setUser(json.data.user);
+    setTwoFactorPending(null);
+    startRefreshTimer();
+    router.push("/cases");
+
+    return { recoveryCodes: json.data.recoveryCodes };
+  };
+
+  /** Verify recovery code during login */
+  const verify2FARecovery = async (code: string) => {
+    const res = await fetch("/api/auth/2fa/verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ recoveryCode: code }),
+    });
+
+    const json = await res.json();
+
+    if (!res.ok) {
+      throw new Error(json.message || "Verification failed");
+    }
+
+    setUser(json.data.user);
+    setTwoFactorPending(null);
+    startRefreshTimer();
+    router.push("/cases");
+  };
+
+  /** Complete 2FA setup (first-time): verify OTP + enable 2FA */
+  const complete2FASetup = async (token: string): Promise<{ recoveryCodes: string[] }> => {
+    const res = await fetch("/api/auth/2fa/verify-setup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token }),
+    });
+
+    const json = await res.json();
+
+    if (!res.ok) {
+      throw new Error(json.message || "Setup verification failed");
+    }
+
+    // If user data is returned (login flow), set session
+    if (json.data.user) {
+      setUser(json.data.user);
+      setTwoFactorPending(null);
+      startRefreshTimer();
+    }
+
+    return { recoveryCodes: json.data.recoveryCodes };
   };
 
   const logout = async () => {
@@ -117,7 +201,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        twoFactorPending,
+        login,
+        verify2FA,
+        verify2FARecovery,
+        complete2FASetup,
+        logout,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
