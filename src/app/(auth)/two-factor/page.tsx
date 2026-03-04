@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, type FormEvent } from "react";
+import { useState, useEffect, useRef, type FormEvent } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { useRouter } from "next/navigation";
 import {
@@ -18,6 +18,7 @@ export default function TwoFactorPage() {
   const [step, setStep] = useState<Step>("verify");
   const [otpCode, setOtpCode] = useState("");
   const [recoveryInput, setRecoveryInput] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
