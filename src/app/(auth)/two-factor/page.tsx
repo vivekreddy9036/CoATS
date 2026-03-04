@@ -1,8 +1,13 @@
 "use client";
 
-import { useState, useEffect, useRef, type FormEvent } from "react";
+import { useState, useEffect, type FormEvent } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { useRouter } from "next/navigation";
+import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSlot,
+} from "@/components/ui/input-otp";
 
 type Step = "verify" | "setup" | "recovery-codes" | "recovery-input";
 
@@ -22,8 +27,6 @@ export default function TwoFactorPage() {
   const [recoveryCodes, setRecoveryCodes] = useState<string[]>([]);
   const [recoveryCodesSaved, setRecoveryCodesSaved] = useState(false);
 
-  const inputRef = useRef<HTMLInputElement>(null);
-
   useEffect(() => {
     if (!twoFactorPending) {
       router.push("/login");
@@ -39,10 +42,6 @@ export default function TwoFactorPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  useEffect(() => {
-    inputRef.current?.focus();
-  }, [step]);
 
   async function fetchSetup() {
     try {
@@ -151,20 +150,24 @@ export default function TwoFactorPage() {
               )}
 
               <form onSubmit={handleVerifyOtp} className="space-y-5">
-                <div>
-                  <input
-                    ref={inputRef}
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
+                <div className="flex justify-center">
+                  <InputOTP
                     maxLength={6}
                     value={otpCode}
-                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
-                    className="w-full px-4 py-3 text-center text-2xl font-mono tracking-[0.5em] border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-navy outline-none"
-                    placeholder="000000"
+                    onChange={setOtpCode}
+                    disabled={loading}
+                    autoFocus
                     autoComplete="one-time-code"
-                    required
-                  />
+                  >
+                    <InputOTPGroup>
+                      <InputOTPSlot index={0} />
+                      <InputOTPSlot index={1} />
+                      <InputOTPSlot index={2} />
+                      <InputOTPSlot index={3} />
+                      <InputOTPSlot index={4} />
+                      <InputOTPSlot index={5} />
+                    </InputOTPGroup>
+                  </InputOTP>
                 </div>
 
                 <button
@@ -285,24 +288,27 @@ export default function TwoFactorPage() {
                   {/* Verify OTP */}
                   <form onSubmit={handleSetupVerify} className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      <p className="text-sm font-medium text-gray-700 mb-3 text-center">
                         Enter the 6-digit code from your app
-                      </label>
-                      <input
-                        ref={inputRef}
-                        type="text"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
-                        maxLength={6}
-                        value={otpCode}
-                        onChange={(e) =>
-                          setOtpCode(e.target.value.replace(/\D/g, ""))
-                        }
-                        className="w-full px-4 py-3 text-center text-2xl font-mono tracking-[0.5em] border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-navy outline-none"
-                        placeholder="000000"
-                        autoComplete="one-time-code"
-                        required
-                      />
+                      </p>
+                      <div className="flex justify-center">
+                        <InputOTP
+                          maxLength={6}
+                          value={otpCode}
+                          onChange={setOtpCode}
+                          disabled={loading}
+                          autoComplete="one-time-code"
+                        >
+                          <InputOTPGroup>
+                            <InputOTPSlot index={0} />
+                            <InputOTPSlot index={1} />
+                            <InputOTPSlot index={2} />
+                            <InputOTPSlot index={3} />
+                            <InputOTPSlot index={4} />
+                            <InputOTPSlot index={5} />
+                          </InputOTPGroup>
+                        </InputOTP>
+                      </div>
                     </div>
 
                     <button

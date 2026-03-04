@@ -4,6 +4,7 @@ import { useState, useEffect, type FormEvent } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { useRouter } from "next/navigation";
 import { DatePicker } from "@/components/ui/DatePicker";
+import { toast } from "sonner";
 
 interface UserOption {
   id: number;
@@ -110,13 +111,19 @@ export default function CreateCasePage() {
       const json = await res.json();
 
       if (!res.ok) {
-        setError(json.message || "Failed to create case");
+        const msg = json.error || json.message || "Failed to create case";
+        setError(msg);
+        toast.error("Failed to create case", { description: msg });
         return;
       }
 
+      toast.success("Case registered", {
+        description: `Case ${json.data.uid} has been successfully created.`,
+      });
       router.push(`/cases/${json.data.id}`);
     } catch {
       setError("Something went wrong");
+      toast.error("Something went wrong", { description: "Please try again or contact support." });
     } finally {
       setLoading(false);
     }

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, type FormEvent } from "react";
 import Script from "next/script";
 import { useAuth } from "@/components/AuthProvider";
+import { Label } from "@/components/ui/label";
 
 declare global {
   interface Window {
@@ -79,11 +80,10 @@ export default function LoginPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                User ID
-              </label>
+            <div className="space-y-1.5">
+              <Label htmlFor="username">User ID</Label>
               <input
+                id="username"
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
@@ -94,11 +94,10 @@ export default function LoginPage() {
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                Password
-              </label>
+            <div className="space-y-1.5">
+              <Label htmlFor="password">Password</Label>
               <input
+                id="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
