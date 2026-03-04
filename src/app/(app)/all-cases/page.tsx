@@ -6,6 +6,15 @@ import StageBadge from "@/components/ui/StageBadge";
 import Spinner from "@/components/ui/Spinner";
 import { useAuth } from "@/components/AuthProvider";
 import { useRouter } from "next/navigation";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
 
 interface CaseListItem {
   id: number;
@@ -101,57 +110,61 @@ export default function AllCasesPage() {
         ) : (
           <>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-gray-50 border-b border-gray-200">
-                    <th className="text-left py-3 px-4 text-gray-600 font-medium">Case UID</th>
-                    <th className="text-left py-3 px-4 text-gray-600 font-medium">Crime No.</th>
-                    <th className="text-left py-3 px-4 text-gray-600 font-medium">Branch</th>
-                    <th className="text-left py-3 px-4 text-gray-600 font-medium">Complainant</th>
-                    <th className="text-left py-3 px-4 text-gray-600 font-medium">Date of Reg.</th>
-                    <th className="text-left py-3 px-4 text-gray-600 font-medium">Stage</th>
-                    <th className="text-left py-3 px-4 text-gray-600 font-medium">Officer</th>
-                    <th className="text-center py-3 px-4 text-gray-600 font-medium">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Case UID</TableHead>
+                    <TableHead>Crime No.</TableHead>
+                    <TableHead>Branch</TableHead>
+                    <TableHead>Complainant</TableHead>
+                    <TableHead>Date of Reg.</TableHead>
+                    <TableHead>Stage</TableHead>
+                    <TableHead>Officer</TableHead>
+                    <TableHead className="text-center">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {cases.map((c) => (
-                    <tr key={c.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                      <td className="py-3 px-4 font-medium text-navy">{c.uid}</td>
-                      <td className="py-3 px-4">{c.crimeNumber}</td>
-                      <td className="py-3 px-4">{c.branch.name}</td>
-                      <td className="py-3 px-4">{c.complainantName}</td>
-                      <td className="py-3 px-4">{new Date(c.dateOfRegistration).toLocaleDateString("en-IN")}</td>
-                      <td className="py-3 px-4"><StageBadge code={c.stage.code} /></td>
-                      <td className="py-3 px-4">{c.assignedOfficer.fullName}</td>
-                      <td className="py-3 px-4 text-center">
-                        <Link href={`/cases/${c.id}`} className="text-navy hover:underline">View</Link>
-                      </td>
-                    </tr>
+                    <TableRow key={c.id}>
+                      <TableCell className="font-medium text-navy">{c.uid}</TableCell>
+                      <TableCell>{c.crimeNumber}</TableCell>
+                      <TableCell>{c.branch.name}</TableCell>
+                      <TableCell>{c.complainantName}</TableCell>
+                      <TableCell>{new Date(c.dateOfRegistration).toLocaleDateString("en-IN")}</TableCell>
+                      <TableCell><StageBadge code={c.stage.code} /></TableCell>
+                      <TableCell>{c.assignedOfficer.fullName}</TableCell>
+                      <TableCell className="text-center">
+                        <Button asChild variant="ghost" size="sm" className="text-navy h-7 px-2">
+                          <Link href={`/cases/${c.id}`}>View</Link>
+                        </Button>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
 
             {totalPages > 1 && (
               <div className="flex items-center justify-center gap-2 p-4 border-t border-gray-100">
-                <button
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page <= 1}
-                  className="px-3 py-1 text-sm border border-gray-300 rounded-md disabled:opacity-40 cursor-pointer"
                 >
                   Previous
-                </button>
+                </Button>
                 <span className="text-sm text-gray-600">
                   Page {page} of {totalPages}
                 </span>
-                <button
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   disabled={page >= totalPages}
-                  className="px-3 py-1 text-sm border border-gray-300 rounded-md disabled:opacity-40 cursor-pointer"
                 >
                   Next
-                </button>
+                </Button>
               </div>
             )}
           </>
