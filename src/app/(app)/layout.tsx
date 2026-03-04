@@ -4,8 +4,9 @@ import { useAuth, AuthProvider } from "@/components/AuthProvider";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import Header from "@/components/layout/Header";
-import Sidebar from "@/components/layout/Sidebar";
+import AppSidebar from "@/components/layout/Sidebar";
 import Spinner from "@/components/ui/Spinner";
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 
 function AppShell({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -28,13 +29,15 @@ function AppShell({ children }: { children: React.ReactNode }) {
   if (!user) return null;
 
   return (
-    <div className="min-h-screen">
-      <Header />
-      <Sidebar />
-      <main className="ml-60 mt-16 p-6">
-        {children}
-      </main>
-    </div>
+    <SidebarProvider>
+      <AppSidebar />
+      <SidebarInset>
+        <Header />
+        <main className="p-6">
+          {children}
+        </main>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }
 

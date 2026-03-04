@@ -3,15 +3,55 @@
 import { useAuth } from "@/components/AuthProvider";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+} from "@/components/ui/sidebar";
+import {
+  LayoutDashboard,
+  FolderOpen,
+  FolderKanban,
+  FilePlus,
+  Shield,
+  UserCircle,
+} from "lucide-react";
 
 const navItems = [
-  { href: "/dashboard", label: "Dashboard", supervisoryOnly: true },
-  { href: "/cases", label: "My Cases", supervisoryOnly: false },
-  { href: "/all-cases", label: "All Cases", supervisoryOnly: true },
-  { href: "/cases/new", label: "New Case", supervisoryOnly: false },
+  {
+    href: "/dashboard",
+    label: "Dashboard",
+    icon: LayoutDashboard,
+    supervisoryOnly: true,
+  },
+  {
+    href: "/cases",
+    label: "My Cases",
+    icon: FolderOpen,
+    supervisoryOnly: false,
+  },
+  {
+    href: "/all-cases",
+    label: "All Cases",
+    icon: FolderKanban,
+    supervisoryOnly: true,
+  },
+  {
+    href: "/cases/new",
+    label: "New Case",
+    icon: FilePlus,
+    supervisoryOnly: false,
+  },
 ];
 
-export default function Sidebar() {
+export default function AppSidebar() {
   const { user } = useAuth();
   const pathname = usePathname();
 
@@ -21,42 +61,68 @@ export default function Sidebar() {
     (item) => !item.supervisoryOnly || user.isSupervisory
   );
 
+  const isActive = (href: string) =>
+    pathname === href ||
+    (href === "/cases" &&
+      pathname.startsWith("/cases/") &&
+      pathname !== "/cases/new") ||
+    (href === "/all-cases" && pathname.startsWith("/all-cases/"));
+
   return (
-    <aside className="fixed left-0 top-16 bottom-0 w-60 bg-white border-r border-gray-200 flex flex-col z-40">
-      <nav className="flex-1 py-4">
-        <ul className="space-y-1 px-3">
-          {visibleItems.map((item) => {
-            // Exact match for specific pages, prefix match for dynamic routes
-            const isActive = pathname === item.href ||
-              (item.href === "/cases" && pathname.startsWith("/cases/") && pathname !== "/cases/new") ||
-              (item.href === "/all-cases" && pathname.startsWith("/all-cases/"));
-
-            return (
-              <li key={item.href}>
-                <Link
-                  href={item.href}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                    isActive
-                      ? "bg-navy text-white"
-                      : "text-gray-700 hover:bg-gray-100"
-                  }`}
-                >
-                  <span className="text-base"></span>
-                  {item.label}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
-
-      <div className="p-4 border-t border-gray-200">
-        <div className="text-xs text-gray-500">Logged in as</div>
-        <div className="text-sm font-medium text-gray-800 truncate">
-          {user.fullName}
+    <Sidebar collapsible="icon">
+      {/* Header: CoATS branding */}
+      <SidebarHeader className="border-b border-sidebar-border">
+        <div className="flex items-center gap-2 px-1 py-1">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-navy">
+            <Shield className="h-4 w-4 text-white" />
+          </div>
+          <div className="flex flex-col leading-tight overflow-hidden group-data-[collapsible=icon]:hidden">
+            <span className="text-sm font-bold text-navy">CoATS</span>
+            <span className="text-[10px] text-muted-foreground truncate">
+              Anti Terrorism Squad
+            </span>
+          </div>
         </div>
-        <div className="text-xs text-gray-400">{user.username}</div>
-      </div>
-    </aside>
+      </SidebarHeader>
+
+      {/* Navigation */}
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {visibleItems.map((item) => (
+                <SidebarMenuItem key={item.href}>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={isActive(item.href)}
+                    tooltip={item.label}
+                  >
+                    <Link href={item.href}>
+                      <item.icon />
+                      <span>{item.label}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+
+      {/* Footer: user info */}
+      <SidebarFooter className="border-t border-sidebar-border">
+        <div className="flex items-center gap-2 px-1 py-2">
+          <UserCircle className="h-7 w-7 shrink-0 text-muted-foreground" />
+          <div className="flex flex-col leading-tight overflow-hidden group-data-[collapsible=icon]:hidden">
+            <span className="text-sm font-medium truncate">{user.fullName}</span>
+            <span className="text-xs text-muted-foreground truncate">
+              {user.isSupervisory ? "Supervisory Officer" : "Case Holding Officer"}
+            </span>
+            <span className="text-xs text-muted-foreground">{user.username}</span>
+          </div>
+        </div>
+      </SidebarFooter>
+    </Sidebar>
   );
 }

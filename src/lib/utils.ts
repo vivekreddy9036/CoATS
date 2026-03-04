@@ -1,67 +1,62 @@
-/**
- * Generate a unique case UID.
- * Format: COATS-{BRANCH_CODE}-{YEAR}-{SEQUENCE}
- */
-export function generateCaseUid(
-  branchCode: string,
-  sequence: number
-): string {
-  const year = new Date().getFullYear();
-  const seq = String(sequence).padStart(4, "0");
-  return `COATS-${branchCode}-${year}-${seq}`;
+import { clsx, type ClassValue } from "clsx"
+import { twMerge } from "tailwind-merge"
+import { NextResponse } from "next/server"
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
 }
 
-/**
- * Standard API success response.
- */
-export function apiSuccess<T>(data: T, message = "Success") {
-  return Response.json({ success: true, message, data }, { status: 200 });
-}
+// ── API response helpers ─────────────────────────────────────────────────────
 
-/**
- * Standard API created response.
- */
-export function apiCreated<T>(data: T, message = "Created successfully") {
-  return Response.json({ success: true, message, data }, { status: 201 });
-}
-
-/**
- * Standard API error response.
- */
-export function apiError(message: string, status = 400) {
-  return Response.json({ success: false, message }, { status });
-}
-
-/**
- * Parse pagination params from URL search params.
- */
-export function parsePagination(searchParams: URLSearchParams) {
-  const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
-  const limit = Math.min(
-    100,
-    Math.max(1, parseInt(searchParams.get("limit") || "20", 10))
+export function apiSuccess<T>(data: T, message?: string) {
+  return NextResponse.json(
+    { success: true, data, ...(message ? { message } : {}) },
+    { status: 200 }
   );
+}
+
+export function apiCreated<T>(data: T, message?: string) {
+  return NextResponse.json(
+    { success: true, data, ...(message ? { message } : {}) },
+    { status: 201 }
+  );
+}
+
+export function apiError(error: string, status: number = 400) {
+  return NextResponse.json({ success: false, error }, { status });
+}
+
+// ── Pagination helpers ───────────────────────────────────────────────────────
+
+export function parsePagination(searchParams: URLSearchParams) {
+  const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10));
+  const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") ?? "20", 10)));
   const skip = (page - 1) * limit;
   return { page, limit, skip };
 }
 
-/**
- * Build a paginated response.
- */
 export function paginatedResponse<T>(
   data: T[],
   total: number,
   page: number,
   limit: number
 ) {
-  return Response.json({
+  return NextResponse.json({
     success: true,
     data,
     pagination: {
+      total,
       page,
       limit,
-      total,
       totalPages: Math.ceil(total / limit),
     },
   });
+}
+
+// ── Case UID generator ───────────────────────────────────────────────────────
+
+export function generateCaseUid(branchCode: string, sequenceNumber: number): string {
+  const year = new Date().getFullYear();
+  const seq = String(sequenceNumber).padStart(3, "0");
+  return `${branchCode}/${seq}/${year}`;
 }
