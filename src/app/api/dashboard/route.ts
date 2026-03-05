@@ -52,6 +52,52 @@ export async function GET(req: NextRequest) {
 
     const totalCases = branchSummaries.reduce((sum: number, b: { total: number }) => sum + b.total, 0);
 
+    // Monthly case registration trend (last 6 months)
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
+    sixMonthsAgo.setDate(1);
+    sixMonthsAgo.setHours(0, 0, 0, 0);
+
+    const trendCases = await prisma.case.findMany({
+      where: {
+        isActive: true,
+        createdAt: { gte: sixMonthsAgo },
+        ...(branchId ? { branchId: parseInt(branchId, 10) } : {}),
+      },
+      select: {
+        createdAt: true,
+        stage: { select: { code: true } },
+      },
+    });
+
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const monthlyTrend: { month: string; UI: number; PT: number; HC: number; SC: number; total: number }[] = [];
+    for (let i = 0; i < 6; i++) {
+      const d = new Date();
+      d.setMonth(d.getMonth() - (5 - i));
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const label = `${monthNames[d.getMonth()]} ${d.getFullYear()}`;
+      const monthCases = trendCases.filter(
+        (c) => `${c.createdAt.getFullYear()}-${String(c.createdAt.getMonth() + 1).padStart(2, "0")}` === key
+      );
+      monthlyTrend.push({
+        month: label,
+        UI: monthCases.filter((c) => c.stage.code === "UI").length,
+        PT: monthCases.filter((c) => c.stage.code === "PT").length,
+        HC: monthCases.filter((c) => c.stage.code === "HC").length,
+        SC: monthCases.filter((c) => c.stage.code === "SC").length,
+        total: monthCases.length,
+      });
+    }
+
+    // Stage distribution for pie chart
+    const stageDistribution = stages.map((stage) => {
+      const count = branchSummaries
+        .filter((b) => !branchId || b.branchId === parseInt(branchId, 10))
+        .reduce((sum, b) => sum + (b.stages.find((s) => s.stageCode === stage.code)?.count || 0), 0);
+      return { stage: stage.code, name: stage.name, count };
+    });
+
     // Fetch progress entries within date range (if provided)
     let progressEntries = null;
     if (dateFrom && dateTo) {
@@ -92,6 +138,8 @@ export async function GET(req: NextRequest) {
     return apiSuccess({
       branches: branchSummaries,
       totalCases,
+      monthlyTrend,
+      stageDistribution,
       progressEntries,
     });
   } catch (error) {
