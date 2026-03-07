@@ -60,11 +60,12 @@ export default function LoginPage() {
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-navy-dark to-navy p-4">
         <div className="w-full max-w-md">
         {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-white tracking-wide">CoATS</h1>
-          <p className="text-gray-300 text-sm mt-1">
-            Cases of Anti Terrorism Squad
-          </p>
+        <div className="flex justify-center mb-1">
+          <img
+            src="/CoATS login Page.png"
+            alt="CoATS — Cases of Anti Terrorism Squad"
+            className="w-72 object-contain drop-shadow-lg"
+          />
         </div>
 
         {/* Login Card */}

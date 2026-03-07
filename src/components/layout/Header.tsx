@@ -13,10 +13,16 @@ export default function Header() {
       <Separator orientation="vertical" className="h-5 bg-white/30" />
       <div className="flex flex-1 items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="text-xl font-bold tracking-wide">CoATS</div>
-          <div className="hidden sm:block text-xs text-gray-300 border-l border-gray-500 pl-3">
-            Cases of Anti Terrorism Squad
-          </div>
+          <img
+            src="/CoATS Icon Header.png"
+            alt="CoATS"
+            className="h-9 w-auto object-contain"
+          />
+          <img
+            src="/CoATS Header beside.png"
+            alt=""
+            className="h-7 w-auto object-contain hidden sm:block"
+          />
         </div>
 
         {user && (

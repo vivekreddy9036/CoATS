@@ -442,19 +442,22 @@ function SupervisoryDashboard() {
   const [branchFilter, setBranchFilter] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  // Separate "applied" state so dates only take effect when Apply is clicked.
+  // Branch filter auto-applies immediately on change.
+  const [appliedFilters, setAppliedFilters] = useState({ branchId: "", dateFrom: "", dateTo: "" });
 
   const fetchDashboard = useCallback(() => {
     setLoading(true);
     const params = new URLSearchParams();
-    if (branchFilter) params.set("branchId", branchFilter);
-    if (dateFrom) params.set("dateFrom", dateFrom);
-    if (dateTo) params.set("dateTo", dateTo);
+    if (appliedFilters.branchId) params.set("branchId", appliedFilters.branchId);
+    if (appliedFilters.dateFrom) params.set("dateFrom", appliedFilters.dateFrom);
+    if (appliedFilters.dateTo) params.set("dateTo", appliedFilters.dateTo);
 
     fetch(`/api/dashboard?${params}`)
       .then((r) => r.json())
       .then((json) => setData(json.data))
       .finally(() => setLoading(false));
-  }, [branchFilter, dateFrom, dateTo]);
+  }, [appliedFilters]);
 
   useEffect(() => {
     fetchDashboard();
@@ -465,9 +468,14 @@ function SupervisoryDashboard() {
   const filteredBranches = useMemo(
     () =>
       data?.branches.filter(
-        (b) => !branchFilter || b.branchId === parseInt(branchFilter)
+        (b) => !appliedFilters.branchId || b.branchId === parseInt(appliedFilters.branchId)
       ) || [],
-    [data, branchFilter]
+    [data, appliedFilters.branchId]
+  );
+
+  const filteredTotalCases = useMemo(
+    () => filteredBranches.reduce((s, b) => s + b.total, 0),
+    [filteredBranches]
   );
 
   const kpiStages = useMemo(
@@ -561,7 +569,11 @@ function SupervisoryDashboard() {
               <label className="block text-xs text-gray-500 mb-1">Branch</label>
               <select
                 value={branchFilter}
-                onChange={(e) => setBranchFilter(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setBranchFilter(val);
+                  setAppliedFilters((prev) => ({ ...prev, branchId: val }));
+                }}
                 className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
               >
                 <option value="">All Branches</option>
@@ -589,7 +601,7 @@ function SupervisoryDashboard() {
               />
             </div>
             <button
-              onClick={fetchDashboard}
+              onClick={() => setAppliedFilters({ branchId: branchFilter, dateFrom, dateTo })}
               className="px-4 py-2 bg-navy text-white text-sm rounded-lg hover:bg-navy-light transition-colors cursor-pointer"
             >
               Apply
@@ -617,9 +629,9 @@ function SupervisoryDashboard() {
           <Card className="py-4">
             <CardContent className="pb-0">
               <p className="text-xs text-muted-foreground uppercase tracking-wide">Total Active Cases</p>
-              <div className="text-4xl font-bold text-navy mt-2">{data?.totalCases || 0}</div>
+              <div className="text-4xl font-bold text-navy mt-2">{filteredTotalCases}</div>
               <p className="text-xs text-muted-foreground mt-1">
-                Across {data?.branches.length || 0} branches
+                Across {filteredBranches.length} branch{filteredBranches.length !== 1 ? "es" : ""}
               </p>
             </CardContent>
           </Card>
@@ -653,7 +665,7 @@ function SupervisoryDashboard() {
           <Card className="py-4">
             <CardContent className="pb-0">
               <p className="text-xs text-muted-foreground uppercase tracking-wide">Branches</p>
-              <div className="text-4xl font-bold mt-2 text-slate-700">{data?.branches.length || 0}</div>
+              <div className="text-4xl font-bold mt-2 text-slate-700">{filteredBranches.length}</div>
               <p className="text-xs text-muted-foreground mt-1">
                 Active units
               </p>
@@ -688,7 +700,7 @@ function SupervisoryDashboard() {
                         return (
                           <text x={viewBox.cx} y={viewBox.cy} textAnchor="middle" dominantBaseline="middle">
                             <tspan x={viewBox.cx} y={viewBox.cy} className="text-2xl font-bold fill-foreground">
-                              {data?.totalCases || 0}
+                              {filteredTotalCases}
                             </tspan>
                             <tspan x={viewBox.cx} y={(viewBox.cy || 0) + 20} className="text-xs fill-muted-foreground">
                               Total
