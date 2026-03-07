@@ -32,6 +32,15 @@ import {
   Cell,
   Area,
   AreaChart,
+  Line,
+  LineChart,
+  Radar,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  RadialBar,
+  RadialBarChart,
   Label,
 } from "recharts";
 
@@ -64,6 +73,32 @@ interface StageDistribution {
   count: number;
 }
 
+interface CaseAgeBucket {
+  bracket: string;
+  count: number;
+}
+
+interface SectionCount {
+  section: string;
+  count: number;
+}
+
+interface OfficerWorkload {
+  officer: string;
+  cases: number;
+}
+
+interface ActionCompletion {
+  completed: number;
+  pending: number;
+  total: number;
+}
+
+interface MonthlyProgress {
+  month: string;
+  entries: number;
+}
+
 interface ProgressEntry {
   id: number;
   progressDate: string;
@@ -83,6 +118,11 @@ interface DashboardData {
   totalCases: number;
   monthlyTrend: MonthlyTrend[];
   stageDistribution: StageDistribution[];
+  caseAgeDistribution: CaseAgeBucket[];
+  topSections: SectionCount[];
+  officerWorkload: OfficerWorkload[];
+  actionCompletion: ActionCompletion;
+  monthlyProgress: MonthlyProgress[];
   progressEntries: ProgressEntry[] | null;
 }
 
@@ -105,10 +145,50 @@ const stageChartConfig = {
 
 const PIE_FILLS = [STAGE_COLORS.UI, STAGE_COLORS.PT, STAGE_COLORS.HC, STAGE_COLORS.SC];
 
+const AGE_COLORS = [
+  "hsl(142, 71%, 45%)",  // green  - fresh
+  "hsl(48, 96%, 53%)",   // yellow - moderate
+  "hsl(25, 95%, 53%)",   // orange - aging
+  "hsl(0, 72%, 51%)",    // red    - old
+];
+
+const ageChartConfig = {
+  "< 30 days": { label: "< 30 days", color: AGE_COLORS[0] },
+  "30–90 days": { label: "30–90 days", color: AGE_COLORS[1] },
+  "90–180 days": { label: "90–180 days", color: AGE_COLORS[2] },
+  "> 180 days": { label: "> 180 days", color: AGE_COLORS[3] },
+  count: { label: "Cases", color: "hsl(220, 15%, 50%)" },
+} satisfies ChartConfig;
+
+const actionChartConfig = {
+  completed: { label: "Completed", color: "hsl(142, 71%, 45%)" },
+  pending: { label: "Pending", color: "hsl(0, 84%, 60%)" },
+} satisfies ChartConfig;
+
+const progressChartConfig = {
+  entries: { label: "Progress Entries", color: "hsl(217, 91%, 60%)" },
+} satisfies ChartConfig;
+
+const officerChartConfig = {
+  cases: { label: "Cases", color: "hsl(262, 83%, 58%)" },
+} satisfies ChartConfig;
+
+const sectionChartConfig = {
+  count: { label: "Cases", color: "hsl(217, 91%, 60%)" },
+} satisfies ChartConfig;
+
 // ─── Case Holder Dashboard ─────────────────────────
 
 function CaseHolderDashboard() {
-  const [cases, setCases] = useState<{ stage: { code: string; name: string } }[]>([]);
+  const [cases, setCases] = useState<{
+    id: number;
+    uid: string;
+    crimeNumber: string;
+    dateOfRegistration: string;
+    sectionOfLaw: string;
+    stage: { code: string; name: string };
+    actions: { id: number; isCompleted: boolean }[];
+  }[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -134,6 +214,39 @@ function CaseHolderDashboard() {
     [stageCounts]
   );
 
+  // Case age distribution for current user's cases
+  const caseAgeData = useMemo(() => {
+    const buckets = { "< 30 days": 0, "30–90 days": 0, "90–180 days": 0, "> 180 days": 0 };
+    const now = new Date();
+    for (const c of cases) {
+      const days = Math.floor((now.getTime() - new Date(c.dateOfRegistration).getTime()) / 86400000);
+      if (days < 30) buckets["< 30 days"]++;
+      else if (days < 90) buckets["30–90 days"]++;
+      else if (days < 180) buckets["90–180 days"]++;
+      else buckets["> 180 days"]++;
+    }
+    return Object.entries(buckets).map(([bracket, count]) => ({ bracket, count }));
+  }, [cases]);
+
+  // Radar data — profile of workload
+  const radarData = useMemo(() => {
+    const totalActions = cases.reduce((s, c) => s + (c.actions?.length || 0), 0);
+    const completedActions = cases.reduce((s, c) => s + (c.actions?.filter((a) => a.isCompleted).length || 0), 0);
+    const pendingActions = totalActions - completedActions;
+    return [
+      { metric: "UI Cases", value: stageCounts.find((s) => s.code === "UI")?.count || 0 },
+      { metric: "PT Cases", value: stageCounts.find((s) => s.code === "PT")?.count || 0 },
+      { metric: "HC Cases", value: stageCounts.find((s) => s.code === "HC")?.count || 0 },
+      { metric: "SC Cases", value: stageCounts.find((s) => s.code === "SC")?.count || 0 },
+      { metric: "Pending Actions", value: pendingActions },
+      { metric: "Done Actions", value: completedActions },
+    ];
+  }, [cases, stageCounts]);
+
+  const radarConfig = {
+    value: { label: "Count", color: "hsl(217, 91%, 60%)" },
+  } satisfies ChartConfig;
+
   if (loading) return <Spinner className="py-20" />;
 
   return (
@@ -152,7 +265,7 @@ function CaseHolderDashboard() {
         ))}
       </div>
 
-      {/* Charts Row */}
+      {/* Charts Row 1: Donut + Bar */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         {/* Donut Chart */}
         <Card>
@@ -221,6 +334,64 @@ function CaseHolderDashboard() {
         </Card>
       </div>
 
+      {/* Charts Row 2: Case Age Radial + Radar */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        {/* Case Age Distribution — Radial Bar */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Case Age Analysis</CardTitle>
+            <CardDescription>How old are your active cases</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={ageChartConfig} className="mx-auto aspect-square max-h-[300px]">
+              <RadialBarChart
+                data={caseAgeData.map((d, i) => ({ ...d, fill: AGE_COLORS[i] }))}
+                innerRadius={30}
+                outerRadius={130}
+                startAngle={180}
+                endAngle={0}
+              >
+                <ChartTooltip content={<ChartTooltipContent nameKey="bracket" />} />
+                <RadialBar dataKey="count" background cornerRadius={6} />
+              </RadialBarChart>
+            </ChartContainer>
+            <div className="flex flex-wrap justify-center gap-3 mt-2">
+              {caseAgeData.map((d, i) => (
+                <div key={d.bracket} className="flex items-center gap-1.5 text-xs">
+                  <span className="w-3 h-3 rounded-full" style={{ backgroundColor: AGE_COLORS[i] }} />
+                  {d.bracket}: <span className="font-semibold">{d.count}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Radar Chart — Workload Profile */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Workload Profile</CardTitle>
+            <CardDescription>Cases &amp; actions overview</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={radarConfig} className="mx-auto aspect-square max-h-[300px]">
+              <RadarChart data={radarData}>
+                <PolarGrid />
+                <PolarAngleAxis dataKey="metric" tick={{ fontSize: 11 }} />
+                <PolarRadiusAxis tick={false} axisLine={false} />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Radar
+                  dataKey="value"
+                  fill="hsl(217, 91%, 60%)"
+                  fillOpacity={0.3}
+                  stroke="hsl(217, 91%, 60%)"
+                  strokeWidth={2}
+                />
+              </RadarChart>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Recent Cases Table */}
       <Card>
         <CardHeader>
@@ -241,12 +412,7 @@ function CaseHolderDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {(cases as Array<{
-                    id: number;
-                    uid: string;
-                    crimeNumber: string;
-                    stage: { code: string; name: string };
-                  }>).slice(0, 10).map((c) => (
+                  {cases.slice(0, 10).map((c) => (
                     <tr key={c.id} className="border-b border-gray-50 hover:bg-gray-50">
                       <td className="py-2 px-3 font-medium">{c.uid}</td>
                       <td className="py-2 px-3">{c.crimeNumber}</td>
@@ -338,6 +504,49 @@ function SupervisoryDashboard() {
     [filteredBranches]
   );
 
+  // Radar data — Branch comparison profile
+  const radarData = useMemo(
+    () =>
+      ["UI", "PT", "HC", "SC"].map((code) => ({
+        stage: stageChartConfig[code as keyof typeof stageChartConfig]?.label || code,
+        ...Object.fromEntries(
+          filteredBranches.map((b) => [
+            b.branchCode,
+            b.stages.find((s) => s.stageCode === code)?.count || 0,
+          ])
+        ),
+      })),
+    [filteredBranches]
+  );
+
+  const radarConfig = useMemo(() => {
+    const BRANCH_COLORS = [
+      "hsl(217, 91%, 60%)",
+      "hsl(38, 92%, 50%)",
+      "hsl(0, 84%, 60%)",
+      "hsl(270, 70%, 60%)",
+      "hsl(142, 71%, 45%)",
+      "hsl(340, 82%, 52%)",
+    ];
+    const config: Record<string, { label: string; color: string }> = {};
+    filteredBranches.forEach((b, i) => {
+      config[b.branchCode] = {
+        label: b.branchName,
+        color: BRANCH_COLORS[i % BRANCH_COLORS.length],
+      };
+    });
+    return config as ChartConfig;
+  }, [filteredBranches]);
+
+  // Action completion pie
+  const actionPieData = useMemo(() => {
+    if (!data?.actionCompletion) return [];
+    return [
+      { name: "completed", value: data.actionCompletion.completed },
+      { name: "pending", value: data.actionCompletion.pending },
+    ];
+  }, [data]);
+
   if (loading && !data) return <Spinner className="py-20" />;
 
   return (
@@ -401,7 +610,7 @@ function SupervisoryDashboard() {
         ))}
       </div>
 
-      {/* Total Cases Card */}
+      {/* Total Cases Card + Mini Donut */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6">
         <Card className="py-4">
           <CardContent className="pb-0">
@@ -413,8 +622,23 @@ function SupervisoryDashboard() {
           </CardContent>
         </Card>
 
+        {/* Action Completion Rate */}
+        <Card className="py-4">
+          <CardContent className="pb-0">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide">Action Completion</p>
+            <div className="text-4xl font-bold mt-2" style={{ color: "hsl(142, 71%, 45%)" }}>
+              {data?.actionCompletion?.total
+                ? `${Math.round((data.actionCompletion.completed / data.actionCompletion.total) * 100)}%`
+                : "0%"}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {data?.actionCompletion?.completed || 0} of {data?.actionCompletion?.total || 0} actions done
+            </p>
+          </CardContent>
+        </Card>
+
         {/* Mini Donut Card */}
-        <Card className="lg:col-span-3">
+        <Card className="lg:col-span-2">
           <CardHeader className="pb-2">
             <CardTitle>Stage Distribution</CardTitle>
             <CardDescription>Overall case status breakdown</CardDescription>
@@ -458,7 +682,7 @@ function SupervisoryDashboard() {
         </Card>
       </div>
 
-      {/* Charts Row: Stacked Bar + Area Trend */}
+      {/* Charts Row 1: Stacked Bar + Area Trend */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         {/* Stacked Bar Chart — Branch-wise */}
         <Card>
@@ -483,7 +707,7 @@ function SupervisoryDashboard() {
           </CardContent>
         </Card>
 
-        {/* Area Chart — Monthly Trend */}
+        {/* Area Chart — Monthly Registration Trend */}
         <Card>
           <CardHeader>
             <CardTitle>Monthly Registration Trend</CardTitle>
@@ -525,10 +749,197 @@ function SupervisoryDashboard() {
         </Card>
       </div>
 
+      {/* Charts Row 2: Radar + Progress Activity Line */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        {/* Radar Chart — Branch Comparison */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Branch Comparison Profile</CardTitle>
+            <CardDescription>Comparative view across stages per branch</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={radarConfig} className="mx-auto aspect-square max-h-[320px]">
+              <RadarChart data={radarData}>
+                <PolarGrid />
+                <PolarAngleAxis dataKey="stage" tick={{ fontSize: 11 }} />
+                <PolarRadiusAxis tick={false} axisLine={false} />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                {filteredBranches.map((b, i) => {
+                  const BRANCH_COLORS = [
+                    "hsl(217, 91%, 60%)",
+                    "hsl(38, 92%, 50%)",
+                    "hsl(0, 84%, 60%)",
+                    "hsl(270, 70%, 60%)",
+                    "hsl(142, 71%, 45%)",
+                    "hsl(340, 82%, 52%)",
+                  ];
+                  return (
+                    <Radar
+                      key={b.branchCode}
+                      dataKey={b.branchCode}
+                      fill={BRANCH_COLORS[i % BRANCH_COLORS.length]}
+                      fillOpacity={0.15}
+                      stroke={BRANCH_COLORS[i % BRANCH_COLORS.length]}
+                      strokeWidth={2}
+                    />
+                  );
+                })}
+                <ChartLegend content={<ChartLegendContent />} />
+              </RadarChart>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+
+        {/* Line Chart — Progress Activity Trend */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Progress Activity Trend</CardTitle>
+            <CardDescription>Officer productivity — entries logged per month</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={progressChartConfig} className="max-h-[320px] w-full">
+              <LineChart data={data?.monthlyProgress || []}>
+                <CartesianGrid vertical={false} />
+                <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} />
+                <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Line
+                  type="monotone"
+                  dataKey="entries"
+                  stroke="hsl(217, 91%, 60%)"
+                  strokeWidth={3}
+                  dot={{ r: 5, fill: "hsl(217, 91%, 60%)" }}
+                  activeDot={{ r: 7 }}
+                />
+              </LineChart>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Charts Row 3: Case Age Radial + Action Completion Pie */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        {/* Radial Bar — Case Age Distribution */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Case Age Distribution</CardTitle>
+            <CardDescription>Age of active cases since registration</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={ageChartConfig} className="mx-auto aspect-square max-h-[300px]">
+              <RadialBarChart
+                data={(data?.caseAgeDistribution || []).map((d, i) => ({ ...d, fill: AGE_COLORS[i] }))}
+                innerRadius={30}
+                outerRadius={130}
+                startAngle={180}
+                endAngle={0}
+              >
+                <ChartTooltip content={<ChartTooltipContent nameKey="bracket" />} />
+                <RadialBar dataKey="count" background cornerRadius={6} />
+              </RadialBarChart>
+            </ChartContainer>
+            <div className="flex flex-wrap justify-center gap-3 mt-2">
+              {(data?.caseAgeDistribution || []).map((d, i) => (
+                <div key={d.bracket} className="flex items-center gap-1.5 text-xs">
+                  <span className="w-3 h-3 rounded-full" style={{ backgroundColor: AGE_COLORS[i] }} />
+                  {d.bracket}: <span className="font-semibold">{d.count}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Pie Chart — Action Completion Rate */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Action Completion Rate</CardTitle>
+            <CardDescription>Completed vs pending action items</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={actionChartConfig} className="mx-auto aspect-square max-h-[300px]">
+              <PieChart>
+                <ChartTooltip content={<ChartTooltipContent hideLabel />} />
+                <Pie
+                  data={actionPieData}
+                  dataKey="value"
+                  nameKey="name"
+                  innerRadius={60}
+                  strokeWidth={4}
+                >
+                  <Cell fill="hsl(142, 71%, 45%)" />
+                  <Cell fill="hsl(0, 84%, 60%)" />
+                  <Label
+                    content={({ viewBox }) => {
+                      if (viewBox && "cx" in viewBox && "cy" in viewBox) {
+                        const pct = data?.actionCompletion?.total
+                          ? Math.round((data.actionCompletion.completed / data.actionCompletion.total) * 100)
+                          : 0;
+                        return (
+                          <text x={viewBox.cx} y={viewBox.cy} textAnchor="middle" dominantBaseline="middle">
+                            <tspan x={viewBox.cx} y={viewBox.cy} className="text-3xl font-bold fill-foreground">
+                              {pct}%
+                            </tspan>
+                            <tspan x={viewBox.cx} y={(viewBox.cy || 0) + 24} className="text-sm fill-muted-foreground">
+                              Done
+                            </tspan>
+                          </text>
+                        );
+                      }
+                    }}
+                  />
+                </Pie>
+                <ChartLegend content={<ChartLegendContent nameKey="name" />} />
+              </PieChart>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Charts Row 4: Officer Workload + Top Sections of Law */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        {/* Horizontal Bar — Officer Workload */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Officer Workload</CardTitle>
+            <CardDescription>Top officers by case assignment</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={officerChartConfig} className="max-h-[350px] w-full">
+              <BarChart data={data?.officerWorkload || []} layout="vertical" margin={{ left: 20 }}>
+                <CartesianGrid horizontal={false} />
+                <XAxis type="number" allowDecimals={false} tickLine={false} axisLine={false} />
+                <YAxis type="category" dataKey="officer" tickLine={false} axisLine={false} width={120} tick={{ fontSize: 11 }} />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Bar dataKey="cases" fill="hsl(262, 83%, 58%)" radius={[0, 6, 6, 0]} />
+              </BarChart>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+
+        {/* Bar Chart — Top Sections of Law */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Top Sections of Law</CardTitle>
+            <CardDescription>Most common crime sections across cases</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={sectionChartConfig} className="max-h-[350px] w-full">
+              <BarChart data={data?.topSections || []} layout="vertical" margin={{ left: 20 }}>
+                <CartesianGrid horizontal={false} />
+                <XAxis type="number" allowDecimals={false} tickLine={false} axisLine={false} />
+                <YAxis type="category" dataKey="section" tickLine={false} axisLine={false} width={140} tick={{ fontSize: 11 }} />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Bar dataKey="count" fill="hsl(217, 91%, 60%)" radius={[0, 6, 6, 0]} />
+              </BarChart>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Branch-wise Summary Table */}
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle>Branch-wise Summary</CardTitle>
+          <CardTitle>Branch wise Summary</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">

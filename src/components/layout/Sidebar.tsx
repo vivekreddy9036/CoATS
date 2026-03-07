@@ -71,8 +71,8 @@ export default function AppSidebar() {
   return (
     <Sidebar collapsible="icon">
       {/* Header: CoATS branding */}
-      <SidebarHeader className="border-b border-sidebar-border">
-        <div className="flex items-center gap-2 px-1 py-1">
+      <SidebarHeader className="border-b border-sidebar-border h-16 justify-center">
+        <div className="flex items-center gap-2 px-1">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-navy">
             <Shield className="h-4 w-4 text-white" />
           </div>

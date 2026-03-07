@@ -98,6 +98,111 @@ export async function GET(req: NextRequest) {
       return { stage: stage.code, name: stage.name, count };
     });
 
+    // ── Case Age Distribution ──────────────────────
+    const branchIdFilter = branchId ? parseInt(branchId, 10) : undefined;
+    const activeCases = await prisma.case.findMany({
+      where: {
+        isActive: true,
+        ...(branchIdFilter ? { branchId: branchIdFilter } : {}),
+      },
+      select: { dateOfRegistration: true },
+    });
+
+    const now = new Date();
+    const ageBuckets = { "< 30 days": 0, "30–90 days": 0, "90–180 days": 0, "> 180 days": 0 };
+    for (const c of activeCases) {
+      const days = Math.floor((now.getTime() - new Date(c.dateOfRegistration).getTime()) / 86400000);
+      if (days < 30) ageBuckets["< 30 days"]++;
+      else if (days < 90) ageBuckets["30–90 days"]++;
+      else if (days < 180) ageBuckets["90–180 days"]++;
+      else ageBuckets["> 180 days"]++;
+    }
+    const caseAgeDistribution = Object.entries(ageBuckets).map(([bracket, count]) => ({ bracket, count }));
+
+    // ── Top Sections of Law ────────────────────────
+    const sectionCases = await prisma.case.findMany({
+      where: {
+        isActive: true,
+        ...(branchIdFilter ? { branchId: branchIdFilter } : {}),
+      },
+      select: { sectionOfLaw: true },
+    });
+    const sectionMap = new Map<string, number>();
+    for (const c of sectionCases) {
+      const section = c.sectionOfLaw.trim();
+      sectionMap.set(section, (sectionMap.get(section) || 0) + 1);
+    }
+    const topSections = [...sectionMap.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6)
+      .map(([section, count]) => ({ section, count }));
+
+    // ── Officer Workload (Top 8) ───────────────────
+    const officerCases = await prisma.case.groupBy({
+      by: ["assignedOfficerId"],
+      where: {
+        isActive: true,
+        ...(branchIdFilter ? { branchId: branchIdFilter } : {}),
+      },
+      _count: { id: true },
+      orderBy: { _count: { id: "desc" } },
+      take: 8,
+    });
+    const officerIds = officerCases.map((o) => o.assignedOfficerId);
+    const officers = await prisma.user.findMany({
+      where: { id: { in: officerIds } },
+      select: { id: true, fullName: true },
+    });
+    const officerWorkload = officerCases.map((o) => ({
+      officer: officers.find((u) => u.id === o.assignedOfficerId)?.fullName || "Unknown",
+      cases: o._count.id,
+    }));
+
+    // ── Action Completion Stats ────────────────────
+    const actionStats = await prisma.caseAction.aggregate({
+      where: {
+        case: {
+          isActive: true,
+          ...(branchIdFilter ? { branchId: branchIdFilter } : {}),
+        },
+      },
+      _count: { id: true },
+    });
+    const completedActions = await prisma.caseAction.count({
+      where: {
+        isCompleted: true,
+        case: {
+          isActive: true,
+          ...(branchIdFilter ? { branchId: branchIdFilter } : {}),
+        },
+      },
+    });
+    const actionCompletionData = {
+      completed: completedActions,
+      pending: actionStats._count.id - completedActions,
+      total: actionStats._count.id,
+    };
+
+    // ── Progress Activity Trend (last 6 months) ────
+    const progressActivity = await prisma.caseProgress.findMany({
+      where: {
+        createdAt: { gte: sixMonthsAgo },
+        ...(branchIdFilter ? { case: { branchId: branchIdFilter } } : {}),
+      },
+      select: { createdAt: true },
+    });
+    const monthlyProgress: { month: string; entries: number }[] = [];
+    for (let i = 0; i < 6; i++) {
+      const d = new Date();
+      d.setMonth(d.getMonth() - (5 - i));
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const label = `${monthNames[d.getMonth()]} ${d.getFullYear()}`;
+      const count = progressActivity.filter(
+        (p) => `${p.createdAt.getFullYear()}-${String(p.createdAt.getMonth() + 1).padStart(2, "0")}` === key
+      ).length;
+      monthlyProgress.push({ month: label, entries: count });
+    }
+
     // Fetch progress entries within date range (if provided)
     let progressEntries = null;
     if (dateFrom && dateTo) {
@@ -140,6 +245,11 @@ export async function GET(req: NextRequest) {
       totalCases,
       monthlyTrend,
       stageDistribution,
+      caseAgeDistribution,
+      topSections,
+      officerWorkload,
+      actionCompletion: actionCompletionData,
+      monthlyProgress,
       progressEntries,
     });
   } catch (error) {
