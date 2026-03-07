@@ -119,8 +119,14 @@ export default function TwoFactorPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-navy-dark to-navy p-4">
       <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-white tracking-wide">CoATS</h1>
+        <div className="flex justify-center mb-1">
+          <img
+            src="/coats_login.png"
+            alt="CoATS — Cases of Anti Terrorism Squad"
+            className="w-72 object-contain drop-shadow-lg"
+          />
+        </div>
+        <div className="text-center mb-4">
           <p className="text-gray-300 text-sm mt-1">
             Two-Factor Authentication
           </p>
