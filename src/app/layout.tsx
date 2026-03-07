@@ -10,7 +10,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "CoATS — Cases of Anti Terrorism Squad",
+  title: "CoATS - Cases of Anti Terrorism Squad",
   description: "Case Management System for Anti Terrorism Squad",
   icons: {
     icon: "/CoATS Fevecon.png",
