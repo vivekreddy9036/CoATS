@@ -610,35 +610,59 @@ function SupervisoryDashboard() {
         ))}
       </div>
 
-      {/* Total Cases Card + Mini Donut */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6">
-        <Card className="py-4">
-          <CardContent className="pb-0">
-            <p className="text-xs text-muted-foreground uppercase tracking-wide">Total Active Cases</p>
-            <div className="text-4xl font-bold text-navy mt-2">{data?.totalCases || 0}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Across {data?.branches.length || 0} branches
-            </p>
-          </CardContent>
-        </Card>
+      {/* KPI Summary Cards + Mini Donut */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+        {/* Left: 2x2 KPI cards */}
+        <div className="grid grid-cols-2 gap-4">
+          <Card className="py-4">
+            <CardContent className="pb-0">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Total Active Cases</p>
+              <div className="text-4xl font-bold text-navy mt-2">{data?.totalCases || 0}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Across {data?.branches.length || 0} branches
+              </p>
+            </CardContent>
+          </Card>
 
-        {/* Action Completion Rate */}
-        <Card className="py-4">
-          <CardContent className="pb-0">
-            <p className="text-xs text-muted-foreground uppercase tracking-wide">Action Completion</p>
-            <div className="text-4xl font-bold mt-2" style={{ color: "hsl(142, 71%, 45%)" }}>
-              {data?.actionCompletion?.total
-                ? `${Math.round((data.actionCompletion.completed / data.actionCompletion.total) * 100)}%`
-                : "0%"}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {data?.actionCompletion?.completed || 0} of {data?.actionCompletion?.total || 0} actions done
-            </p>
-          </CardContent>
-        </Card>
+          <Card className="py-4">
+            <CardContent className="pb-0">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Action Completion</p>
+              <div className="text-4xl font-bold mt-2" style={{ color: "hsl(142, 71%, 45%)" }}>
+                {data?.actionCompletion?.total
+                  ? `${Math.round((data.actionCompletion.completed / data.actionCompletion.total) * 100)}%`
+                  : "0%"}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {data?.actionCompletion?.completed || 0} of {data?.actionCompletion?.total || 0} actions done
+              </p>
+            </CardContent>
+          </Card>
 
-        {/* Mini Donut Card */}
-        <Card className="lg:col-span-2">
+          <Card className="py-4">
+            <CardContent className="pb-0">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Pending Actions</p>
+              <div className="text-4xl font-bold mt-2 text-orange-500">
+                {(data?.actionCompletion?.total || 0) - (data?.actionCompletion?.completed || 0)}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Awaiting completion
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="py-4">
+            <CardContent className="pb-0">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Branches</p>
+              <div className="text-4xl font-bold mt-2 text-slate-700">{data?.branches.length || 0}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Active units
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Right: Stage Distribution Donut */}
+        <Card>
           <CardHeader className="pb-2">
             <CardTitle>Stage Distribution</CardTitle>
             <CardDescription>Overall case status breakdown</CardDescription>
