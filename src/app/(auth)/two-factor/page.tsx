@@ -399,7 +399,7 @@ export default function TwoFactorPage() {
         </div>
 
         <p className="text-center text-xs text-gray-400 mt-6">
-          Anti Terrorism Squad — Government of Tamil Nadu
+          Anti Terrorism Squad - Government of Tamil Nadu
         </p>
       </div>
     </div>
