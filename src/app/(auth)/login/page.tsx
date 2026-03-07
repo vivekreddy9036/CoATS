@@ -62,7 +62,7 @@ export default function LoginPage() {
         {/* Header */}
         <div className="flex justify-center mb-1">
           <img
-            src="/CoATS login Page.png"
+            src="/coats_login.png"
             alt="CoATS — Cases of Anti Terrorism Squad"
             className="w-72 object-contain drop-shadow-lg"
           />

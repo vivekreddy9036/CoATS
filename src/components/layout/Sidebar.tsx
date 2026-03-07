@@ -74,7 +74,7 @@ export default function AppSidebar() {
       <SidebarHeader className="border-b border-sidebar-border h-16 justify-center">
         <div className="flex items-center gap-2 px-1">
           <img
-            src="/CoATS Fevecon.png"
+            src="/coats_favicon.png"
             alt="CoATS"
             className="h-8 w-8 shrink-0 rounded-md object-cover"
           />

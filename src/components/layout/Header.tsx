@@ -14,12 +14,12 @@ export default function Header() {
       <div className="flex flex-1 items-center justify-between">
         <div className="flex items-center gap-3">
           <img
-            src="/CoATS Icon Header.png"
+            src="/coats_icon_header.png"
             alt="CoATS"
             className="h-9 w-auto object-contain"
           />
           <img
-            src="/CoATS Header beside.png"
+            src="/coats_header_beside.png"
             alt=""
             className="h-7 w-auto object-contain hidden sm:block"
           />
