@@ -61,11 +61,11 @@ export async function GET(req: NextRequest) {
     const trendCases = await prisma.case.findMany({
       where: {
         isActive: true,
-        createdAt: { gte: sixMonthsAgo },
+        dateOfRegistration: { gte: sixMonthsAgo },
         ...(branchId ? { branchId: parseInt(branchId, 10) } : {}),
       },
       select: {
-        createdAt: true,
+        dateOfRegistration: true,
         stage: { select: { code: true } },
       },
     });
@@ -78,7 +78,10 @@ export async function GET(req: NextRequest) {
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
       const label = `${monthNames[d.getMonth()]} ${d.getFullYear()}`;
       const monthCases = trendCases.filter(
-        (c) => `${c.createdAt.getFullYear()}-${String(c.createdAt.getMonth() + 1).padStart(2, "0")}` === key
+        (c) => {
+          const regDate = new Date(c.dateOfRegistration);
+          return `${regDate.getFullYear()}-${String(regDate.getMonth() + 1).padStart(2, "0")}` === key;
+        }
       );
       monthlyTrend.push({
         month: label,
