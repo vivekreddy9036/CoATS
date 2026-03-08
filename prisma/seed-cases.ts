@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import crypto from "crypto";
 
 const prisma = new PrismaClient({
   datasourceUrl: process.env.DIRECT_DATABASE_URL,
@@ -534,7 +535,7 @@ async function main() {
         data: {
           caseId: created.id,
           description: actionDesc,
-          isCompleted: Math.random() > 0.6,   // ~40% completed randomly
+          isCompleted: crypto.randomInt(100) > 60,   // ~40% completed randomly
           createdById: c.createdById,
           createdAt: c.createdAt,
         },

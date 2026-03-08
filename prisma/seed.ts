@@ -1,12 +1,16 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 
 // Use the direct database URL for seeding (not Accelerate proxy)
 const prisma = new PrismaClient({
   datasourceUrl: process.env.DIRECT_DATABASE_URL,
 });
 
-const DEFAULT_PASSWORD = "CoATS@2026";
+// Read from env or generate a secure random password for seeding
+const DEFAULT_PASSWORD =
+  process.env.SEED_DEFAULT_PASSWORD ||
+  crypto.randomBytes(16).toString("base64url");
 
 async function main() {
   console.log("🌱 Seeding CoATS database...\n");
@@ -163,7 +167,12 @@ async function main() {
   console.log(
     `\n✅ Seeding complete! Total: ${supervisory.length + caseHolders.length} users`
   );
-  console.log(`   Default password: ${DEFAULT_PASSWORD}`);
+  if (!process.env.SEED_DEFAULT_PASSWORD) {
+    console.log(`   Generated default password: ${DEFAULT_PASSWORD}`);
+    console.log(`   Save this password — it won't be shown again.`);
+  } else {
+    console.log(`   Default password: (set via SEED_DEFAULT_PASSWORD env var)`);
+  }
 }
 
 main()
