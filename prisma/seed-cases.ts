@@ -6,7 +6,7 @@ const prisma = new PrismaClient({
 });
 
 async function main() {
-  console.log("🗂️  Seeding test cases for presentation...\n");
+  console.log("Seeding test cases for presentation...\n");
 
   // Fetch lookup data
   const branches = await prisma.branch.findMany();
