@@ -15,11 +15,15 @@ import type { SessionUser } from "@/types";
 interface AuthContextValue {
   user: SessionUser | null;
   loading: boolean;
-  twoFactorPending: { required: boolean; totpEnabled: boolean } | null;
+  twoFactorPending: { required: boolean; totpEnabled: boolean; passkeyEnabled: boolean } | null;
   login: (username: string, password: string, turnstileToken: string) => Promise<void>;
   verify2FA: (token: string) => Promise<{ recoveryCodes?: string[] }>;
   verify2FARecovery: (code: string) => Promise<void>;
   complete2FASetup: (token: string) => Promise<{ recoveryCodes: string[] }>;
+  getPasskeyRegistrationOptions: () => Promise<unknown>;
+  completePasskeyRegistration: (credential: unknown, friendlyName?: string, setupOnly?: boolean) => Promise<{ recoveryCodes?: string[] }>;
+  getPasskeyAuthOptions: () => Promise<unknown>;
+  verifyPasskey: (credential: unknown) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -45,6 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [twoFactorPending, setTwoFactorPending] = useState<{
     required: boolean;
     totpEnabled: boolean;
+    passkeyEnabled: boolean;
   } | null>(null);
   const router = useRouter();
   const refreshTimer = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -217,6 +222,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setTwoFactorPending({
         required: true,
         totpEnabled: json.data.totpEnabled,
+        passkeyEnabled: json.data.passkeyEnabled ?? false,
       });
       router.push("/two-factor");
       return;
@@ -293,6 +299,62 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { recoveryCodes: json.data.recoveryCodes };
   };
 
+  /** Get passkey registration options (for setup) */
+  const getPasskeyRegistrationOptions = async (): Promise<unknown> => {
+    const res = await fetch("/api/auth/passkey/register-options", { method: "POST" });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || json.error || "Failed to get registration options");
+    return json.data;
+  };
+
+  /** Complete passkey registration (first-time or adding new) */
+  const completePasskeyRegistration = async (
+    credential: unknown,
+    friendlyName?: string,
+    setupOnly?: boolean
+  ): Promise<{ recoveryCodes?: string[] }> => {
+    const res = await fetch("/api/auth/passkey/register-verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ credential, friendlyName, setupOnly }),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || json.error || "Passkey registration failed");
+
+    // Only set user/session if NOT setupOnly (i.e. full login flow)
+    if (!setupOnly && json.data.user) {
+      setUser(json.data.user);
+      setTwoFactorPending(null);
+      startSessionTimers();
+    }
+
+    return { recoveryCodes: json.data.recoveryCodes };
+  };
+
+  /** Get passkey authentication options (for login) */
+  const getPasskeyAuthOptions = async (): Promise<unknown> => {
+    const res = await fetch("/api/auth/passkey/auth-options", { method: "POST" });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || json.error || "Failed to get auth options");
+    return json.data;
+  };
+
+  /** Verify passkey during login */
+  const verifyPasskey = async (credential: unknown): Promise<void> => {
+    const res = await fetch("/api/auth/passkey/auth-verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ credential }),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || json.error || "Passkey verification failed");
+
+    setUser(json.data.user);
+    setTwoFactorPending(null);
+    startSessionTimers();
+    router.push("/cases");
+  };
+
   const logout = async () => {
     clearRefreshTimer();
     clearInactivityTimer();
@@ -311,6 +373,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         verify2FA,
         verify2FARecovery,
         complete2FASetup,
+        getPasskeyRegistrationOptions,
+        completePasskeyRegistration,
+        getPasskeyAuthOptions,
+        verifyPasskey,
         logout,
       }}
     >

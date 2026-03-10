@@ -11,6 +11,7 @@ export interface LoginRequest {
 export interface LoginResponse {
   requires2FA?: boolean;
   totpEnabled?: boolean;
+  passkeyEnabled?: boolean;
   user?: SessionUser;
 }
 

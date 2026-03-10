@@ -70,8 +70,8 @@ export async function POST(req: NextRequest) {
     }
 
     // ── 2FA Flow ──────────────────────────────────────
-    // Case 1: 2FA enabled → require OTP before issuing JWT
-    if (user.totpEnabled) {
+    // Case 1: 2FA enabled (TOTP or Passkey) → require verification before issuing JWT
+    if (user.totpEnabled || user.passkeyEnabled) {
       // Check if account is locked due to failed OTP attempts
       if (isAccountLocked(user.totpLockedUntil)) {
         return apiError(
@@ -83,15 +83,19 @@ export async function POST(req: NextRequest) {
       const pendingToken = await sign2faPendingToken(user.id);
 
       const response = apiSuccess(
-        { requires2FA: true, totpEnabled: true },
+        {
+          requires2FA: true,
+          totpEnabled: user.totpEnabled,
+          passkeyEnabled: user.passkeyEnabled,
+        },
         "2FA verification required"
       );
       response.headers.append("Set-Cookie", build2faPendingCookie(pendingToken));
       return response;
     }
 
-    // Case 2: 2FA not yet set up → force setup before issuing JWT
-    if (!user.totpEnabled) {
+    // Case 2: No 2FA set up → force setup before issuing JWT
+    if (!user.totpEnabled && !user.passkeyEnabled) {
       const pendingToken = await sign2faPendingToken(user.id);
 
       const response = apiSuccess(

@@ -16,6 +16,10 @@ const PUBLIC_ROUTES = [
   "/api/auth/2fa/setup",
   "/api/auth/2fa/verify-setup",
   "/api/auth/2fa/verify",
+  "/api/auth/passkey/register-options",
+  "/api/auth/passkey/register-verify",
+  "/api/auth/passkey/auth-options",
+  "/api/auth/passkey/auth-verify",
   "/two-factor",
 ];
 
