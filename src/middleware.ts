@@ -52,7 +52,7 @@ export async function middleware(req: NextRequest) {
   }
 
   // 4. Verify access token (Edge-compatible jose)
-  let payload: { isSupervisory?: boolean; roleCode?: string; branchId?: number };
+  let payload: { userId?: number; isSupervisory?: boolean; roleCode?: string; branchId?: number };
   try {
     const { payload: verified } = await jwtVerify(token, JWT_SECRET);
     payload = verified as typeof payload;
@@ -81,7 +81,7 @@ export async function middleware(req: NextRequest) {
 
   // 7. Add user info to request headers (available to API routes)
   const response = NextResponse.next();
-  response.headers.set("x-user-id", String(payload.roleCode));
+  response.headers.set("x-user-id", String(payload.userId || ""));
   response.headers.set("x-user-role", payload.roleCode || "");
   response.headers.set("x-user-branch", String(payload.branchId || ""));
   response.headers.set("x-user-supervisory", payload.isSupervisory ? "true" : "false");

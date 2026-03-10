@@ -28,6 +28,17 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 // Refresh the access token 1 minute before it expires (15m token → refresh at 14m)
 const REFRESH_INTERVAL = 14 * 60 * 1000;
 
+// Inactivity timeout — auto-logout after 15 minutes of no user activity
+const INACTIVITY_TIMEOUT = 15 * 60 * 1000;
+
+// Activity events to track
+const ACTIVITY_EVENTS: (keyof DocumentEventMap)[] = [
+  "mousedown",
+  "keydown",
+  "scroll",
+  "touchstart",
+];
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<SessionUser | null>(null);
   const [loading, setLoading] = useState(true);
@@ -37,6 +48,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   } | null>(null);
   const router = useRouter();
   const refreshTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const inactivityTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastActivity = useRef<number>(Date.now());
 
   const clearRefreshTimer = useCallback(() => {
     if (refreshTimer.current) {
@@ -44,6 +57,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       refreshTimer.current = null;
     }
   }, []);
+
+  const clearInactivityTimer = useCallback(() => {
+    if (inactivityTimer.current) {
+      clearTimeout(inactivityTimer.current);
+      inactivityTimer.current = null;
+    }
+  }, []);
+
+  const forceLogout = useCallback(async () => {
+    clearRefreshTimer();
+    clearInactivityTimer();
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch { /* ignore */ }
+    setUser(null);
+    router.push("/login");
+  }, [clearRefreshTimer, clearInactivityTimer, router]);
+
+  const resetInactivityTimer = useCallback(() => {
+    lastActivity.current = Date.now();
+    clearInactivityTimer();
+    inactivityTimer.current = setTimeout(() => {
+      forceLogout();
+    }, INACTIVITY_TIMEOUT);
+  }, [clearInactivityTimer, forceLogout]);
 
   const refreshTokens = useCallback(async (): Promise<boolean> => {
     try {
@@ -62,14 +100,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const startRefreshTimer = useCallback(() => {
     clearRefreshTimer();
     refreshTimer.current = setInterval(async () => {
+      // Only refresh if user has been active within the last 15 minutes
+      const timeSinceActivity = Date.now() - lastActivity.current;
+      if (timeSinceActivity >= INACTIVITY_TIMEOUT) {
+        forceLogout();
+        return;
+      }
+
       const ok = await refreshTokens();
       if (!ok) {
         clearRefreshTimer();
+        clearInactivityTimer();
         setUser(null);
         router.push("/login");
       }
     }, REFRESH_INTERVAL);
-  }, [clearRefreshTimer, refreshTokens, router]);
+  }, [clearRefreshTimer, clearInactivityTimer, refreshTokens, forceLogout, router]);
+
+  const startSessionTimers = useCallback(() => {
+    startRefreshTimer();
+    resetInactivityTimer();
+  }, [startRefreshTimer, resetInactivityTimer]);
 
   const fetchSession = useCallback(async () => {
     try {
@@ -77,12 +128,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (res.ok) {
         const json = await res.json();
         setUser(json.data);
-        startRefreshTimer();
+        startSessionTimers();
       } else {
         // Access token expired — try refresh
         const refreshed = await refreshTokens();
         if (refreshed) {
-          startRefreshTimer();
+          startSessionTimers();
         } else {
           setUser(null);
         }
@@ -92,12 +143,61 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [refreshTokens, startRefreshTimer]);
+  }, [refreshTokens, startSessionTimers]);
+
+  // Track user activity to reset the inactivity timer
+  useEffect(() => {
+    if (!user) return;
+
+    const handleActivity = () => resetInactivityTimer();
+
+    ACTIVITY_EVENTS.forEach((event) =>
+      document.addEventListener(event, handleActivity, { passive: true })
+    );
+
+    return () => {
+      ACTIVITY_EVENTS.forEach((event) =>
+        document.removeEventListener(event, handleActivity)
+      );
+    };
+  }, [user, resetInactivityTimer]);
+
+  // Handle tab visibility — check session when user returns to tab
+  useEffect(() => {
+    if (!user) return;
+
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === "visible") {
+        const timeSinceActivity = Date.now() - lastActivity.current;
+        if (timeSinceActivity >= INACTIVITY_TIMEOUT) {
+          forceLogout();
+          return;
+        }
+        // Tab became visible — verify session is still valid
+        const res = await fetch("/api/auth/me");
+        if (!res.ok) {
+          const refreshed = await refreshTokens();
+          if (!refreshed) {
+            forceLogout();
+            return;
+          }
+        }
+        resetInactivityTimer();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () =>
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [user, refreshTokens, forceLogout, resetInactivityTimer]);
 
   useEffect(() => {
     fetchSession();
-    return () => clearRefreshTimer();
-  }, [fetchSession, clearRefreshTimer]);
+    return () => {
+      clearRefreshTimer();
+      clearInactivityTimer();
+    };
+  }, [fetchSession, clearRefreshTimer, clearInactivityTimer]);
 
   const login = async (username: string, password: string, turnstileToken: string) => {
     const res = await fetch("/api/auth/login", {
@@ -123,7 +223,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     setUser(json.data.user);
-    startRefreshTimer();
+    startSessionTimers();
     router.push("/cases");
   };
 
@@ -143,7 +243,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     setUser(json.data.user);
     setTwoFactorPending(null);
-    startRefreshTimer();
+    startSessionTimers();
     router.push("/cases");
 
     return { recoveryCodes: json.data.recoveryCodes };
@@ -165,7 +265,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     setUser(json.data.user);
     setTwoFactorPending(null);
-    startRefreshTimer();
+    startSessionTimers();
     router.push("/cases");
   };
 
@@ -187,7 +287,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (json.data.user) {
       setUser(json.data.user);
       setTwoFactorPending(null);
-      startRefreshTimer();
+      startSessionTimers();
     }
 
     return { recoveryCodes: json.data.recoveryCodes };
@@ -195,6 +295,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     clearRefreshTimer();
+    clearInactivityTimer();
     await fetch("/api/auth/logout", { method: "POST" });
     setUser(null);
     router.push("/login");
