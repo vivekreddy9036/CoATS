@@ -23,7 +23,7 @@ interface AuthContextValue {
   getPasskeyRegistrationOptions: () => Promise<unknown>;
   completePasskeyRegistration: (credential: unknown, friendlyName?: string, setupOnly?: boolean) => Promise<{ recoveryCodes?: string[] }>;
   getPasskeyAuthOptions: () => Promise<unknown>;
-  verifyPasskey: (credential: unknown) => Promise<void>;
+  verifyPasskey: (credential: unknown) => Promise<{ setupRequired?: boolean }>;
   logout: () => Promise<void>;
 }
 
@@ -340,7 +340,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   /** Verify passkey during login */
-  const verifyPasskey = async (credential: unknown): Promise<void> => {
+  const verifyPasskey = async (credential: unknown): Promise<{ setupRequired?: boolean }> => {
     const res = await fetch("/api/auth/passkey/auth-verify", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -349,10 +349,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const json = await res.json();
     if (!res.ok) throw new Error(json.message || json.error || "Passkey verification failed");
 
+    // Server signals that passkey is verified but TOTP setup is still missing.
+    // Keep 2fa_pending alive so the UI can continue the setup wizard.
+    if (json.data?.setupRequired) {
+      return { setupRequired: true };
+    }
+
     setUser(json.data.user);
     setTwoFactorPending(null);
     startSessionTimers();
     router.push("/cases");
+    return {};
   };
 
   const logout = async () => {

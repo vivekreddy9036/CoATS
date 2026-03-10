@@ -100,15 +100,26 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ── Success: issue full session ──
+    // ── Success ──
     await prisma.user.update({
       where: { id: user.id },
       data: {
         totpFailedCount: 0,
         totpLockedUntil: null,
-        lastLogin: new Date(),
       },
     });
+
+    // Enforce both methods are fully set up before issuing a session.
+    // If TOTP is not yet enabled the user registered a passkey but never
+    // completed the authenticator-app step.  Keep the 2fa_pending cookie
+    // alive and tell the UI to resume setup.
+    if (!user.totpEnabled) {
+      auditLog(user.id, "PASSKEY_AUTH_SUCCESS", "Passkey verified (setup incomplete)", ip);
+      return apiSuccess(
+        { setupRequired: true, missingMethod: "totp" },
+        "Passkey verified. Please complete authenticator app setup."
+      );
+    }
 
     const jwtPayload = {
       userId: user.id,
@@ -126,6 +137,7 @@ export async function POST(req: NextRequest) {
       signRefreshToken(user.id),
     ]);
 
+    await prisma.user.update({ where: { id: user.id }, data: { lastLogin: new Date() } });
     auditLog(user.id, "LOGIN_SUCCESS", "Via passkey", ip);
     auditLog(user.id, "PASSKEY_AUTH_SUCCESS", undefined, ip);
 

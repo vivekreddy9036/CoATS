@@ -60,13 +60,20 @@ export default function TwoFactorPage() {
     const { totpEnabled, passkeyEnabled } = twoFactorPending;
 
     if (!totpEnabled && !passkeyEnabled) {
-      // First-time: mandatory setup — start with passkey
+      // Fresh account — start full mandatory setup
       setStep("setup-passkey");
     } else if (totpEnabled && passkeyEnabled) {
-      // Both set up: choose which to verify with
+      // Both done — choose a method to verify
       setStep("choose-method");
-    } else if (passkeyEnabled) {
-      setStep("passkey-verify");
+    } else if (passkeyEnabled && !totpEnabled) {
+      // Passkey registered but TOTP not completed (e.g. refreshed mid-setup)
+      // Force them back to TOTP setup to finish the mandatory wizard.
+      setPasskeyDone(true);
+      setStep("setup-totp");
+      fetchSetup();
+    } else if (totpEnabled && !passkeyEnabled) {
+      // TOTP done but passkey not registered (e.g. refreshed mid-setup)
+      setStep("setup-passkey");
     } else {
       setStep("verify");
     }
@@ -174,7 +181,14 @@ export default function TwoFactorPage() {
       const options = await getPasskeyAuthOptions();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const credential = await startAuthentication({ optionsJSON: options as any });
-      await verifyPasskey(credential);
+      const result = await verifyPasskey(credential);
+      // Passkey verified but TOTP setup was never finished — resume setup wizard
+      if (result?.setupRequired) {
+        setPasskeyDone(true);
+        setStep("setup-totp");
+        fetchSetup();
+        return;
+      }
     } catch (err) {
       if (err instanceof Error && err.name === "NotAllowedError") {
         setError("Passkey verification was cancelled.");
