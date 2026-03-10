@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="./public/coats_header_beside.png" alt="CoATS Logo" width="420" />
+<img src="./public/coats_login.png" alt="CoATS Logo" width="420" />
 
 <br/>
 <br/>
