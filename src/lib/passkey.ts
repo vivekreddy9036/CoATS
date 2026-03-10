@@ -35,24 +35,37 @@ export function getOriginFromRequest(req: Request): string {
   return process.env.WEBAUTHN_ORIGIN || "http://localhost:3000";
 }
 
-// ── In-memory challenge store (short-lived) ───────────
-// Maps `userId` → challenge string. Challenges expire after 5 minutes.
-const challengeStore = new Map<number, { challenge: string; expires: number }>();
-const CHALLENGE_TTL = 5 * 60 * 1000; // 5 minutes
+// ── DB-backed challenge store ─────────────────────────
+// Stores the active WebAuthn challenge directly on the User row.
+// This survives HMR reloads and Vercel serverless cold starts.
+const CHALLENGE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
-function storeChallenge(userId: number, challenge: string) {
-  challengeStore.set(userId, {
-    challenge,
-    expires: Date.now() + CHALLENGE_TTL,
+async function storeChallenge(userId: number, challenge: string) {
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      webauthnChallenge: challenge,
+      webauthnChallengeExp: new Date(Date.now() + CHALLENGE_TTL_MS),
+    },
   });
 }
 
-function consumeChallenge(userId: number): string | null {
-  const entry = challengeStore.get(userId);
-  if (!entry) return null;
-  challengeStore.delete(userId);
-  if (Date.now() > entry.expires) return null;
-  return entry.challenge;
+async function consumeChallenge(userId: number): Promise<string | null> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { webauthnChallenge: true, webauthnChallengeExp: true },
+  });
+
+  // Clear the challenge from DB regardless of outcome (one-time use)
+  await prisma.user.update({
+    where: { id: userId },
+    data: { webauthnChallenge: null, webauthnChallengeExp: null },
+  });
+
+  if (!user?.webauthnChallenge) return null;
+  if (user.webauthnChallengeExp && user.webauthnChallengeExp < new Date()) return null;
+
+  return user.webauthnChallenge;
 }
 
 // ── Registration (setup) ──────────────────────────────
@@ -83,7 +96,7 @@ export async function getRegistrationOptions(userId: number, username: string) {
     },
   });
 
-  storeChallenge(userId, options.challenge);
+  await storeChallenge(userId, options.challenge);
   return options;
 }
 
@@ -93,7 +106,7 @@ export async function verifyAndSaveRegistration(
   friendlyName?: string,
   expectedOrigin?: string
 ) {
-  const expectedChallenge = consumeChallenge(userId);
+  const expectedChallenge = await consumeChallenge(userId);
   if (!expectedChallenge) {
     throw new Error("Registration challenge expired or not found. Please try again.");
   }
@@ -165,7 +178,7 @@ export async function getAuthenticationOptions(userId: number) {
     userVerification: "preferred",
   });
 
-  storeChallenge(userId, options.challenge);
+  await storeChallenge(userId, options.challenge);
   return options;
 }
 
@@ -174,7 +187,7 @@ export async function verifyAuthentication(
   response: AuthenticationResponseJSON,
   expectedOrigin?: string
 ) {
-  const expectedChallenge = consumeChallenge(userId);
+  const expectedChallenge = await consumeChallenge(userId);
   if (!expectedChallenge) {
     throw new Error("Authentication challenge expired or not found. Please try again.");
   }

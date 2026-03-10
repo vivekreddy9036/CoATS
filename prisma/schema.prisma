@@ -70,7 +70,9 @@ model User {
   totpLockedUntil  DateTime? @map("totp_locked_until")
 
   // ── Passkey (WebAuthn) Authentication ──
-  passkeyEnabled   Boolean   @default(false) @map("passkey_enabled")
+  passkeyEnabled        Boolean   @default(false) @map("passkey_enabled")
+  webauthnChallenge     String?   @map("webauthn_challenge")        // active challenge (base64url)
+  webauthnChallengeExp  DateTime? @map("webauthn_challenge_exp")    // expiry for the challenge
 
   role   Role   @relation(fields: [roleId], references: [id])
   branch Branch @relation(fields: [branchId], references: [id])
