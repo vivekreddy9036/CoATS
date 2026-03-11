@@ -63,8 +63,8 @@ model User {
   lastLogin    DateTime? @map("last_login")
   lastLoginIp       String?   @map("last_login_ip") @db.VarChar(45)
   lastLoginLocation String?   @map("last_login_location") @db.VarChar(200)
-  lastLoginLat      Float?    @map("last_login_lat")
-  lastLoginLng      Float?    @map("last_login_lng")
+  lastLoginLat      Float?    @map("last_login_lat") @db.DoublePrecision
+  lastLoginLng      Float?    @map("last_login_lng") @db.DoublePrecision
 
   // ── Two-Factor Authentication ──
   totpEnabled      Boolean   @default(false) @map("totp_enabled")
