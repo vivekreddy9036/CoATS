@@ -100,6 +100,10 @@ export interface SessionUser {
   isSupervisory: boolean;
   branchId: number;
   branchCode: string;
+  lastLoginLocation: string | null;
+  lastLoginIp: string | null;
+  lastLoginLat: number | null;
+  lastLoginLng: number | null;
 }
 
 // ──────────────────────────────────────────────────

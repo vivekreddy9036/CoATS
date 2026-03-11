@@ -16,7 +16,7 @@ import {
   MAX_FAILED_ATTEMPTS,
   getLockoutExpiry,
 } from "@/lib/totp";
-import { auditLog, getClientIpFromRequest } from "@/lib/audit";
+import { auditLog, getClientIpFromRequest, lookupIpLocation } from "@/lib/audit";
 
 /**
  * POST /api/auth/passkey/auth-verify
@@ -137,7 +137,8 @@ export async function POST(req: NextRequest) {
       signRefreshToken(user.id),
     ]);
 
-    await prisma.user.update({ where: { id: user.id }, data: { lastLogin: new Date() } });
+    const geo = await lookupIpLocation(ip);
+    await prisma.user.update({ where: { id: user.id }, data: { lastLogin: new Date(), lastLoginIp: ip, lastLoginLocation: geo.location || null, lastLoginLat: geo.lat, lastLoginLng: geo.lng } });
     auditLog(user.id, "LOGIN_SUCCESS", "Via passkey", ip);
     auditLog(user.id, "PASSKEY_AUTH_SUCCESS", undefined, ip);
 
