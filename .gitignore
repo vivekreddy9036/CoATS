@@ -42,3 +42,11 @@ yarn-error.log*
 next-env.d.ts
 
 /src/generated/prisma
+fabric-certs/
+
+# Hyperledger Fabric binaries — downloaded by curl, never committed
+/bin/
+/builders/
+/config/configtx.yaml
+/config/core.yaml
+/config/orderer.yaml

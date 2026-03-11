@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/api-auth";
 import { apiSuccess, apiError } from "@/lib/utils";
+import { fabricRecordStageChange } from "@/lib/fabric";
 import type { UpdateCaseRequest } from "@/types";
 
 interface RouteParams {
@@ -85,6 +86,11 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
     },
     include: { stage: true, branch: true },
   });
+
+  // Anchor stage change on Hyperledger Fabric ledger (fire-and-forget)
+  if (body.stageId !== undefined && body.stageId !== existing.stageId) {
+    fabricRecordStageChange(updated.uid, session.userId, existing.stageId, body.stageId);
+  }
 
   return apiSuccess(updated, "Case updated");
 }

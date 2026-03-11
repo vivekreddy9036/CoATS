@@ -8,6 +8,7 @@ import {
   paginatedResponse,
   generateCaseUid,
 } from "@/lib/utils";
+import { fabricRecordCaseCreated } from "@/lib/fabric";
 import type { CreateCaseRequest } from "@/types";
 
 
@@ -142,6 +143,9 @@ export async function POST(req: NextRequest) {
 
       return created;
     });
+
+    // Anchor case creation on Hyperledger Fabric ledger (fire-and-forget)
+    fabricRecordCaseCreated(newCase.uid, session.userId, newCase.branchId, newCase.crimeNumber);
 
     return apiCreated(newCase);
   } catch (error: unknown) {

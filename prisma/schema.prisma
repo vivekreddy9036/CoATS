@@ -154,6 +154,7 @@ model Case {
   createdById        Int      @map("created_by_id")
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
+  blockchainTxId     String?  @map("blockchain_tx_id")  // Hyperledger Fabric TX ID
 
   stage           CaseStage @relation(fields: [stageId], references: [id])
   assignedOfficer User      @relation("AssignedOfficer", fields: [assignedOfficerId], references: [id])
@@ -183,6 +184,8 @@ model CaseAction {
   case      Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
   createdBy User @relation(fields: [createdById], references: [id])
 
+  blockchainTxId  String?  @map("blockchain_tx_id")  // Hyperledger Fabric TX ID
+
   @@index([caseId])
   @@index([isCompleted])
   @@map("case_actions")
@@ -201,6 +204,8 @@ model CaseProgress {
 
   case      Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
   createdBy User @relation(fields: [createdById], references: [id])
+
+  blockchainTxId  String?  @map("blockchain_tx_id")  // Hyperledger Fabric TX ID
 
   @@index([caseId])
   @@index([progressDate])

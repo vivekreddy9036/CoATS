@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/api-auth";
 import { apiCreated, apiSuccess, apiError, parsePagination, paginatedResponse } from "@/lib/utils";
+import { fabricRecordProgress } from "@/lib/fabric";
 import type { CreateProgressRequest } from "@/types";
 
 
@@ -112,6 +113,14 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
 
     return progress;
   });
+
+  // Anchor progress entry on Hyperledger Fabric ledger (fire-and-forget)
+  fabricRecordProgress(
+    caseData.uid,
+    session.userId,
+    body.progressDate,
+    result.id
+  );
 
   return apiCreated(result, "Progress added");
 }

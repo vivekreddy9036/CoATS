@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/api-auth";
 import { apiSuccess, apiError } from "@/lib/utils";
+import { fabricRecordActionCompleted } from "@/lib/fabric";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -41,6 +42,9 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     where: { id: actionId },
     data: { isCompleted: true, completedAt: new Date() },
   });
+
+  // Anchor action completion on Hyperledger Fabric ledger (fire-and-forget)
+  fabricRecordActionCompleted(action.case.uid, session.userId, actionId);
 
   return apiSuccess(updated, "Action completed");
 }
