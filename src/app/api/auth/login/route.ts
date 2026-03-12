@@ -12,7 +12,7 @@ import {
 import { apiSuccess, apiError } from "@/lib/utils";
 import { applyRateLimit, LOGIN_RATE_LIMIT } from "@/lib/rate-limit";
 import { isAccountLocked } from "@/lib/totp";
-import { auditLog, getClientIpFromRequest } from "@/lib/audit";
+import { auditLog, getClientIpFromRequest, lookupIpLocation } from "@/lib/audit";
 import type { LoginRequest } from "@/types";
 
 async function verifyTurnstile(token: string): Promise<boolean> {
@@ -108,9 +108,10 @@ export async function POST(req: NextRequest) {
 
     // ── No 2FA (fallback — should not reach here) ────
     // Update last login
+    const geo = await lookupIpLocation(ip);
     await prisma.user.update({
       where: { id: user.id },
-      data: { lastLogin: new Date() },
+      data: { lastLogin: new Date(), lastLoginIp: ip, lastLoginLocation: geo.location || null, lastLoginLat: geo.lat, lastLoginLng: geo.lng },
     });
 
     const jwtPayload = {

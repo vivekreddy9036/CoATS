@@ -74,6 +74,10 @@ export async function POST(req: NextRequest) {
           isSupervisory: user.role.isSupervisory,
           branchId: user.branchId,
           branchCode: user.branch.code,
+          lastLoginLocation: user.lastLoginLocation ?? null,
+          lastLoginIp: user.lastLoginIp ?? null,
+          lastLoginLat: user.lastLoginLat ?? null,
+          lastLoginLng: user.lastLoginLng ?? null,
         },
       },
       "Token refreshed"

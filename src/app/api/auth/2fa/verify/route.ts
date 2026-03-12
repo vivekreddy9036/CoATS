@@ -18,7 +18,7 @@ import {
   MAX_FAILED_ATTEMPTS,
   getLockoutExpiry,
 } from "@/lib/totp";
-import { auditLog, getClientIpFromRequest } from "@/lib/audit";
+import { auditLog, getClientIpFromRequest, lookupIpLocation } from "@/lib/audit";
 
 /**
  * POST /api/auth/2fa/verify
@@ -139,12 +139,17 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Success: issue full session ──
+    const geo = await lookupIpLocation(ip);
     await prisma.user.update({
       where: { id: user.id },
       data: {
         totpFailedCount: 0,
         totpLockedUntil: null,
         lastLogin: new Date(),
+        lastLoginIp: ip,
+        lastLoginLocation: geo.location || null,
+        lastLoginLat: geo.lat,
+        lastLoginLng: geo.lng,
       },
     });
 

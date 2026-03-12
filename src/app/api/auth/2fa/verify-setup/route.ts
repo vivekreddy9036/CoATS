@@ -19,7 +19,7 @@ import {
   MAX_FAILED_ATTEMPTS,
   getLockoutExpiry,
 } from "@/lib/totp";
-import { auditLog, getClientIpFromRequest } from "@/lib/audit";
+import { auditLog, getClientIpFromRequest, lookupIpLocation } from "@/lib/audit";
 
 /**
  * POST /api/auth/2fa/verify-setup
@@ -102,6 +102,7 @@ export async function POST(req: NextRequest) {
     const { plaintext: recoveryCodes, hashed: hashedCodes } =
       await generateRecoveryCodes();
 
+    const geo = await lookupIpLocation(ip);
     await prisma.user.update({
       where: { id: user.id },
       data: {
@@ -110,6 +111,10 @@ export async function POST(req: NextRequest) {
         totpLockedUntil: null,
         totpBackupCodes: JSON.stringify(hashedCodes),
         lastLogin: new Date(),
+        lastLoginIp: ip,
+        lastLoginLocation: geo.location || null,
+        lastLoginLat: geo.lat,
+        lastLoginLng: geo.lng,
       },
     });
 
