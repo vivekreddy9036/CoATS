@@ -118,7 +118,7 @@ export default function CreateCasePage() {
       }
 
       toast.success("Case registered", {
-        description: `Case ${json.data.uid} has been successfully created.`,
+        description: `Case ${json.data.uid} created. You can now upload documents on the case page.`,
       });
       router.push(`/cases/${json.data.id}`);
     } catch {

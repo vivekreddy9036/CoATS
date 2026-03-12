@@ -85,6 +85,7 @@ model User {
   createdCases    Case[]         @relation("CaseCreator")
   createdActions  CaseAction[]
   progressEntries CaseProgress[]
+  uploadedFiles   CaseFile[]
   auditLogs       AuditLog[]
   passkeys        Passkey[]
 
@@ -167,6 +168,7 @@ model Case {
 
   actions         CaseAction[]
   progressEntries CaseProgress[]
+  files           CaseFile[]
 
   @@unique([crimeNumber, branchId])
   @@index([stageId])
@@ -174,6 +176,23 @@ model Case {
   @@index([branchId])
   @@index([isActive])
   @@map("cases")
+}
+
+model CaseFile {
+  id          Int      @id @default(autoincrement())
+  caseId      Int      @map("case_id")
+  r2Key       String   @unique @map("r2_key")       // e.g. cases/42/1710000000_report.pdf
+  fileName    String   @map("file_name") @db.VarChar(255)
+  contentType String   @map("content_type") @db.VarChar(100)
+  sizeBytes   Int      @map("size_bytes")
+  uploadedById Int     @map("uploaded_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  case       Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  uploadedBy User @relation(fields: [uploadedById], references: [id])
+
+  @@index([caseId])
+  @@map("case_files")
 }
 
 model CaseAction {

@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import StageBadge from "@/components/ui/StageBadge";
 import Spinner from "@/components/ui/Spinner";
+import CaseFiles from "@/components/CaseFiles";
 
 interface CaseDetail {
   id: number;
@@ -192,6 +193,9 @@ export default function CaseDetailPage() {
           </div>
         )}
       </div>
+
+      {/* Case Documents (R2 Storage) */}
+      <CaseFiles caseId={caseData.id} />
     </div>
   );
 }

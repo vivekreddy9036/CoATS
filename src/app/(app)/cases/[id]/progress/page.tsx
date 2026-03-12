@@ -4,6 +4,8 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Spinner from "@/components/ui/Spinner";
 import { DatePicker } from "@/components/ui/DatePicker";
+import CaseFiles from "@/components/CaseFiles";
+import { toast } from "sonner";
 
 interface PendingAction {
   id: number;
@@ -85,6 +87,7 @@ export default function ProgressUpdatePage() {
         return;
       }
 
+      toast.success("Progress updated");
       router.push(`/cases/${id}`);
     } catch {
       setError("Something went wrong");
@@ -215,6 +218,11 @@ export default function ProgressUpdatePage() {
           </button>
         </div>
       </form>
+
+      {/* Case Documents */}
+      <div className="mt-6">
+        <CaseFiles caseId={caseData.id} />
+      </div>
     </div>
   );
 }
