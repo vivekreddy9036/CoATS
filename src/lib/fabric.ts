@@ -30,7 +30,11 @@ import * as fs from "fs";
 
 // ── Configuration ──────────────────────────────────────────────────────────
 
-const FABRIC_PEER_ENDPOINT = process.env.FABRIC_PEER_ENDPOINT ?? "";
+const FABRIC_PEER_ENDPOINT_RAW = process.env.FABRIC_PEER_ENDPOINT ?? "";
+// Use ipv4: scheme for direct IP addresses to bypass DNS resolution
+const FABRIC_PEER_ENDPOINT = FABRIC_PEER_ENDPOINT_RAW && !FABRIC_PEER_ENDPOINT_RAW.includes("://")
+  ? `ipv4:${FABRIC_PEER_ENDPOINT_RAW}`
+  : FABRIC_PEER_ENDPOINT_RAW;
 const FABRIC_CHANNEL       = process.env.FABRIC_CHANNEL       ?? "coats-channel";
 const FABRIC_CHAINCODE     = process.env.FABRIC_CHAINCODE     ?? "coats-chaincode";
 const FABRIC_MSP_ID        = process.env.FABRIC_MSP_ID        ?? "CoATSMSP";
@@ -236,4 +240,56 @@ export function fabricRecordActionCompleted(
   )
     .then((txId) => console.info(`[Fabric] Action completed anchored: action#${actionId} | TX: ${txId}`))
     .catch((err) => console.error("[Fabric] recordActionCompleted failed:", err));
+}
+
+
+// ── Public API — Query Functions ────────────────────────────────────────────
+// These are NOT fire-and-forget — they return data to the caller.
+
+/** Whether the Fabric blockchain integration is configured and active. */
+export function isFabricEnabled(): boolean {
+  return FABRIC_ENABLED;
+}
+
+/**
+ * Query a transaction from the blockchain. Returns the evaluated result.
+ * Unlike submitTx(), this does NOT create a new transaction on the ledger.
+ */
+async function evaluateQuery(
+  fnName: string,
+  ...args: string[]
+): Promise<string> {
+  if (!FABRIC_ENABLED) throw new Error("Fabric is not configured");
+
+  const { contract, close } = getConnection();
+  try {
+    const resultBytes = await contract.evaluateTransaction(fnName, ...args);
+    return Buffer.from(resultBytes).toString();
+  } finally {
+    close();
+  }
+}
+
+/** Get the immutable case creation record from the ledger. */
+export async function fabricGetCaseRecord(caseUid: string): Promise<unknown> {
+  const raw = await evaluateQuery("getCaseRecord", caseUid);
+  return JSON.parse(raw);
+}
+
+/** Get the full history of a case (all creation-record writes). */
+export async function fabricGetCaseHistory(caseUid: string): Promise<unknown[]> {
+  const raw = await evaluateQuery("getCaseHistory", caseUid);
+  return JSON.parse(raw);
+}
+
+/** Get all stage-change records for a case. */
+export async function fabricGetStageHistory(caseUid: string): Promise<unknown[]> {
+  const raw = await evaluateQuery("getStageHistory", caseUid);
+  return JSON.parse(raw);
+}
+
+/** Get all progress records for a case. */
+export async function fabricGetProgressHistory(caseUid: string): Promise<unknown[]> {
+  const raw = await evaluateQuery("getProgressHistory", caseUid);
+  return JSON.parse(raw);
 }
