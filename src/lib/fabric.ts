@@ -27,6 +27,7 @@ import {
 } from "@hyperledger/fabric-gateway";
 import * as crypto from "crypto";
 import * as fs from "fs";
+import { prisma } from "@/lib/prisma";
 
 // ── Configuration ──────────────────────────────────────────────────────────
 
@@ -139,12 +140,14 @@ async function submitTx(
 /**
  * Anchor a new case creation event on the Fabric ledger.
  * Called after prisma.case.create() succeeds.
+ * @param caseId  The DB primary key of the Case row (used to save the TX ID back).
  */
 export function fabricRecordCaseCreated(
   caseUid: string,
   officerId: number,
   branchId: number,
-  crimeNumber: string
+  crimeNumber: string,
+  caseId: number
 ): void {
   if (!FABRIC_ENABLED) return;
 
@@ -157,7 +160,12 @@ export function fabricRecordCaseCreated(
     crimeNumber,
     timestamp
   )
-    .then((txId) => console.info(`[Fabric] Case created anchored: ${caseUid} | TX: ${txId}`))
+    .then((txId) => {
+      console.info(`[Fabric] Case created anchored: ${caseUid} | TX: ${txId}`);
+      prisma.case
+        .update({ where: { id: caseId }, data: { blockchainTxId: txId } })
+        .catch((err) => console.error("[Fabric] Failed to save blockchainTxId for case:", err));
+    })
     .catch((err) => {
       console.error("[Fabric] recordCaseCreated failed:", err?.message ?? err);
       // Log each detail for actionable debugging
@@ -215,7 +223,12 @@ export function fabricRecordProgress(
     String(progressId),
     timestamp
   )
-    .then((txId) => console.info(`[Fabric] Progress anchored: ${caseUid} | TX: ${txId}`))
+    .then((txId) => {
+      console.info(`[Fabric] Progress anchored: ${caseUid} | TX: ${txId}`);
+      prisma.caseProgress
+        .update({ where: { id: progressId }, data: { blockchainTxId: txId } })
+        .catch((err) => console.error("[Fabric] Failed to save blockchainTxId for progress:", err));
+    })
     .catch((err) => console.error("[Fabric] recordProgress failed:", err));
 }
 
@@ -238,7 +251,12 @@ export function fabricRecordActionCompleted(
     String(actionId),
     timestamp
   )
-    .then((txId) => console.info(`[Fabric] Action completed anchored: action#${actionId} | TX: ${txId}`))
+    .then((txId) => {
+      console.info(`[Fabric] Action completed anchored: action#${actionId} | TX: ${txId}`);
+      prisma.caseAction
+        .update({ where: { id: actionId }, data: { blockchainTxId: txId } })
+        .catch((err) => console.error("[Fabric] Failed to save blockchainTxId for action:", err));
+    })
     .catch((err) => console.error("[Fabric] recordActionCompleted failed:", err));
 }
 

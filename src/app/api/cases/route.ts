@@ -145,7 +145,7 @@ export async function POST(req: NextRequest) {
     });
 
     // Anchor case creation on Hyperledger Fabric ledger (fire-and-forget)
-    fabricRecordCaseCreated(newCase.uid, session.userId, newCase.branchId, newCase.crimeNumber);
+    fabricRecordCaseCreated(newCase.uid, session.userId, newCase.branchId, newCase.crimeNumber, newCase.id);
 
     return apiCreated(newCase);
   } catch (error: unknown) {
