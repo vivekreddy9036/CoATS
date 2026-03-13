@@ -186,6 +186,7 @@ export default function CreateCasePage() {
                 label="Date of Occurrence"
                 value={form.dateOfOccurrence}
                 onChange={(val) => setField("dateOfOccurrence", val)}
+                disableFutureDates
                 required
               />
             </div>
@@ -194,6 +195,7 @@ export default function CreateCasePage() {
                 label="Date of Registration"
                 value={form.dateOfRegistration}
                 onChange={(val) => setField("dateOfRegistration", val)}
+                disableFutureDates
                 required
               />
             </div>

@@ -20,15 +20,36 @@ const ALLOWED_TYPES = new Set([
   "image/jpeg",
   "image/png",
   "image/webp",
+  "image/heic",
+  "image/heif",
   "application/msword",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   "application/vnd.ms-excel",
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   "text/plain",
+  "audio/mpeg",
+  "audio/mp4",
+  "audio/wav",
+  "audio/webm",
+  "audio/ogg",
+  "video/mp4",
+  "video/webm",
+  "video/quicktime",
 ]);
 
 export function isAllowedFileType(mimeType: string): boolean {
-  return ALLOWED_TYPES.has(mimeType);
+  const normalized = mimeType.toLowerCase().split(";")[0].trim();
+
+  if (ALLOWED_TYPES.has(normalized)) {
+    return true;
+  }
+
+  // Common aliases from browser capture APIs.
+  if (normalized === "audio/x-wav") return true;
+  if (normalized === "audio/x-m4a") return true;
+  if (normalized === "video/x-matroska") return true;
+
+  return false;
 }
 
 // ── R2 Client (S3-compatible) ───────────────────────────────────────────────

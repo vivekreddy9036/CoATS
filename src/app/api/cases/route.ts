@@ -11,6 +11,23 @@ import {
 import { fabricRecordCaseCreated } from "@/lib/fabric";
 import type { CreateCaseRequest } from "@/types";
 
+function parseDateOnlyStrict(value: string): Date | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+
+  const [year, month, day] = value.split("-").map((part) => parseInt(part, 10));
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+
+  if (
+    parsed.getUTCFullYear() !== year ||
+    parsed.getUTCMonth() !== month - 1 ||
+    parsed.getUTCDate() !== day
+  ) {
+    return null;
+  }
+
+  return parsed;
+}
+
 
 /**
  * GET /api/cases
@@ -91,6 +108,22 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    const occurrenceDate = parseDateOnlyStrict(body.dateOfOccurrence);
+    const registrationDate = parseDateOnlyStrict(body.dateOfRegistration);
+
+    if (!occurrenceDate || !registrationDate) {
+      return apiError("Invalid date format. Use YYYY-MM-DD.");
+    }
+
+    const todayUtc = new Date();
+    const todayUtcDateOnly = new Date(
+      Date.UTC(todayUtc.getUTCFullYear(), todayUtc.getUTCMonth(), todayUtc.getUTCDate())
+    );
+
+    if (occurrenceDate > todayUtcDateOnly || registrationDate > todayUtcDateOnly) {
+      return apiError("Date of occurrence and date of registration cannot be in the future.");
+    }
+
     // Generate UID: count existing cases for the branch this year
     const year = new Date().getFullYear();
     const startOfYear = new Date(`${year}-01-01`);
@@ -117,8 +150,8 @@ export async function POST(req: NextRequest) {
           psLimit: body.psLimit,
           crimeNumber: body.crimeNumber,
           sectionOfLaw: body.sectionOfLaw,
-          dateOfOccurrence: new Date(body.dateOfOccurrence),
-          dateOfRegistration: new Date(body.dateOfRegistration),
+          dateOfOccurrence: occurrenceDate,
+          dateOfRegistration: registrationDate,
           complainantName: body.complainantName,
           accusedDetails: body.accusedDetails,
           gist: body.gist,

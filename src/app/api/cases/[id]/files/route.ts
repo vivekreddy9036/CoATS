@@ -89,7 +89,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   // ── Validate file type ──────────────────────────────────────────────────
   if (!isAllowedFileType(file.type)) {
     return apiError(
-      "File type not allowed. Accepted: PDF, JPEG, PNG, WebP, DOC, DOCX, XLS, XLSX, TXT",
+      "File type not allowed. Accepted: PDF, images, DOC, DOCX, XLS, XLSX, TXT, MP3/WAV/M4A/OGG, MP4/WEBM/MOV",
       400
     );
   }

@@ -21,6 +21,7 @@ interface DatePickerProps {
   placeholder?: string;
   className?: string;
   id?: string;
+  disableFutureDates?: boolean;
 }
 
 export function DatePicker({
@@ -31,6 +32,7 @@ export function DatePicker({
   placeholder = "Select date",
   className = "",
   id,
+  disableFutureDates = false,
 }: DatePickerProps) {
   const [open, setOpen] = React.useState(false);
 
@@ -73,6 +75,7 @@ export function DatePicker({
             selected={validDate}
             defaultMonth={validDate ?? new Date()}
             captionLayout="dropdown"
+            disabled={disableFutureDates ? { after: new Date() } : undefined}
             onSelect={(date) => {
               onChange(date ? format(date, "yyyy-MM-dd") : "");
               setOpen(false);
