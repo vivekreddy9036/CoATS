@@ -7,10 +7,9 @@ const prisma = new PrismaClient({
   datasourceUrl: process.env.DIRECT_DATABASE_URL,
 });
 
-// Read from env or generate a secure random password for seeding
-const DEFAULT_PASSWORD =
-  process.env.SEED_DEFAULT_PASSWORD ||
-  crypto.randomBytes(16).toString("base64url");
+// Use fixed password for production - all users default to this password
+// For security: Change this password immediately after first login
+const DEFAULT_PASSWORD = process.env.SEED_DEFAULT_PASSWORD || "CoATS@2026";
 
 async function main() {
   console.log("🌱 Seeding CoATS database...\n");
@@ -167,12 +166,8 @@ async function main() {
   console.log(
     `\n✅ Seeding complete! Total: ${supervisory.length + caseHolders.length} users`
   );
-  if (!process.env.SEED_DEFAULT_PASSWORD) {
-    console.log(`   Generated default password: ${DEFAULT_PASSWORD}`);
-    console.log(`   Save this password — it won't be shown again.`);
-  } else {
-    console.log(`   Default password: (set via SEED_DEFAULT_PASSWORD env var)`);
-  }
+  console.log(`   Default password for all users: ${DEFAULT_PASSWORD}`);
+  console.log(`   ⚠️  PRODUCTION WARNING: Change this password after first login!`);
 }
 
 main()
